@@ -1,0 +1,3 @@
+C:\Users\87537\Desktop\Search\SuperSearch\bin\Release\net8.0-windows\win-x64\publish\SuperSearch.pdb
+C:\Users\87537\Desktop\Search\SuperSearch\bin\Release\net8.0-windows\win-x64\publish\Assets\app.ico
+C:\Users\87537\Desktop\Search\SuperSearch\bin\Release\net8.0-windows\win-x64\publish\SuperSearch.exe

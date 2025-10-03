@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "FcmZWm5smbA=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\87537\\Desktop\\Search\\SuperSearch\\SuperSearch.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\87537\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512",
+    "C:\\Users\\87537\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\9.0.9\\microsoft.extensions.dependencyinjection.9.0.9.nupkg.sha512",
+    "C:\\Users\\87537\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\9.0.9\\microsoft.extensions.dependencyinjection.abstractions.9.0.9.nupkg.sha512",
+    "C:\\Users\\87537\\.nuget\\packages\\microsoft.win32.systemevents\\9.0.9\\microsoft.win32.systemevents.9.0.9.nupkg.sha512",
+    "C:\\Users\\87537\\.nuget\\packages\\system.drawing.common\\9.0.9\\system.drawing.common.9.0.9.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,48 @@
+﻿<Application ShutdownMode="OnExplicitShutdown" x:Class="SuperSearch.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <Color x:Key="SurfaceColor">#1E1E24</Color>
+            <Color x:Key="SurfaceAccentColor">#2F80ED</Color>
+            <Color x:Key="SurfaceBorderColor">#29FFFFFF</Color>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#F01E1E24" />
+            <SolidColorBrush x:Key="SurfaceOverlayBrush" Color="#CC1E1E24" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF2F80ED" />
+            <SolidColorBrush x:Key="AccentBrushOpacity" Color="#442F80ED" />
+            <SolidColorBrush x:Key="BorderBrush" Color="#29FFFFFF" />
+            <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
+            <Style TargetType="ListBoxItem">
+                <Setter Property="Margin" Value="0,4" />
+                <Setter Property="Padding" Value="12" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Border x:Name="Root"
+                                    Background="Transparent"
+                                    CornerRadius="10"
+                                    BorderThickness="0">
+                                <ContentPresenter Margin="0"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentBrushOpacity}" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
+
