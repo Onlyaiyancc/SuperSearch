@@ -4,25 +4,25 @@ SuperSearch is a lightweight omnibox for Windows built with .NET 8 and WPF. It f
 
 ## Key Features
 
-- **Global summon** ¨C press `Alt+Space` anywhere to pop up the search bar. `Shift+Enter` forces a Bing search, while `Esc` hides the window instantly.
-- **Unified results** ¨C type an application name, a URL, or arbitrary text; SuperSearch surfaces local apps, direct URL launches, or Bing web results respectively.
-- **Optimised keyboard navigation** ¨C arrow keys move through results; the list keeps the selection visible by auto-scrolling. Double-click or `Enter` launches the highlighted item.
-- **Tray integration** ¨C SuperSearch runs quietly in the notification area with options to show, hide, or exit the app. The tray icon shares the same custom search glyph as the main window.
-- **Dark theme** ¨C a cohesive dark UI with a slim custom scroll bar that keeps focus on results.
-- **Zero-install usage stats** ¨C recently launched apps bubble to the top of the default view; statistics are stored locally under `%LOCALAPPDATA%`.
+- **Global summon** ï¿½C press `Alt+Space` anywhere to pop up the search bar. `Shift+Enter` forces a Bing search, while `Esc` hides the window instantly.
+- **Unified results** ï¿½C type an application name, a URL, or arbitrary text; SuperSearch surfaces local apps, direct URL launches, or Bing web results respectively.
+- **Optimised keyboard navigation** ï¿½C arrow keys move through results; the list keeps the selection visible by auto-scrolling. Double-click or `Enter` launches the highlighted item.
+- **Tray integration** ï¿½C SuperSearch runs quietly in the notification area with options to show, hide, or exit the app. The tray icon shares the same custom search glyph as the main window.
+- **Dark theme** ï¿½C a cohesive dark UI with a slim custom scroll bar that keeps focus on results.
+- **Zero-install usage stats** ï¿½C recently launched apps bubble to the top of the default view; statistics are stored locally under `%LOCALAPPDATA%`.
 
 ## Architecture Overview
 
 ```
 SuperSearch
-©À©¤©¤ App.xaml / App.xaml.cs          # Application bootstrap, DI container, graceful shutdown
-©À©¤©¤ MainWindow.xaml (.cs)           # UI layout, input handling, global hotkey registration
-©À©¤©¤ ViewModels/MainViewModel.cs     # Search orchestration, throttling, command execution
-©À©¤©¤ Models/                         # ApplicationEntry, SearchResult, usage DTOs
-©À©¤©¤ Services/                       # Indexing, fuzzy search, URL detection, process launching
-©À©¤©¤ Utilities/                      # FuzzyMatcher, IconLoader, lightweight logging
-©À©¤©¤ Interop/                        # Win32 hotkey helpers, Mica backdrop utilities
-©¸©¤©¤ Assets/app.ico                  # Shared icon for window and tray
+|-- App.xaml / App.xaml.cs          # Application bootstrap, DI container, graceful shutdown
+|-- MainWindow.xaml (.cs)           # UI layout, input handling, global hotkey registration
+|-- ViewModels/MainViewModel.cs     # Search orchestration, throttling, command execution
+|-- Models/                         # ApplicationEntry, SearchResult, usage DTOs
+|-- Services/                       # Indexing, fuzzy search, URL detection, process launching
+|-- Utilities/                      # FuzzyMatcher, IconLoader, lightweight logging
+|-- Interop/                        # Win32 hotkey helpers, Mica backdrop utilities
+`-- Assets/app.ico                  # Shared icon for window and tray
 ```
 
 The app uses [`Microsoft.Extensions.DependencyInjection`](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for basic dependency wiring and [`CommunityToolkit.Mvvm`](https://learn.microsoft.com/windows/communitytoolkit/mvvm/introduction) to keep view-models concise.
@@ -58,7 +58,7 @@ Published binaries (including the custom icon) are placed under `SuperSearch\bin
 | `Shift+Enter`    | Force a Bing search for the current text |
 | `Enter`          | Launch highlighted entry                 |
 | `Esc`            | Hide the window                         |
-| `¡ü` / `¡ý`        | Navigate result list                    |
+| `ï¿½ï¿½` / `ï¿½ï¿½`        | Navigate result list                    |
 | `Ctrl+Space`/`Ctrl+Shift+Space` | Automatic fallback hotkeys if `Alt+Space` is unavailable |
 
 ## Configuration Notes
