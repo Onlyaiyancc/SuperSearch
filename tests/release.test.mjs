@@ -48,6 +48,27 @@ function fixture() {
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
 describe('release publication', () => {
+  it('accepts the short portable-executable restoration after NSIS finishes', () => {
+    const { write, options } = fixture();
+    write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 240_025);
+    expect(publishRelease(options).version).toBe('0.1.6');
+  });
+
+  it('still rejects an installer materially older than its executable', () => {
+    const { root, write, options } = fixture();
+    write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 242_000);
+    expect(() => publishRelease(options)).toThrow(/installer.*rebuild/i);
+    expect(existsSync(join(root, 'outputs'))).toBe(false);
+  });
+
+  it('applies no timestamp tolerance to production inputs changed after packaging', () => {
+    const { root, write, options } = fixture();
+    write('src/App.svelte', 'changed production input', 120_000);
+    write('src-tauri/target/release/supersearch.exe', 'final executable', 119_975);
+    write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 120_025);
+    expect(() => publishRelease(options)).toThrow(/installer.*rebuild/i);
+    expect(existsSync(join(root, 'outputs'))).toBe(false);
+  });
   it.each(['src/App.svelte', 'src-tauri/src/engine.rs', 'index.html', 'src-tauri/vendor/bridge.c'])
   ('rejects a fresh verification of an executable built before %s changed', path => {
     const { root, write, options } = fixture();

@@ -136,10 +136,12 @@ export function publishRelease({ projectRoot = dirname(dirname(scriptPath)), out
   }
   if (verifiedAt < newestSourceTime(root)) throw new Error('Verification predates a changed source or configuration file.');
   // 检查与构建并不等价；旧 EXE 即使重新检查通过，也不能覆盖后来修改的生产输入。
-  if (executable.mtimeMs < newestSourceTime(root, executableInputs)) {
+  const productionInputTime = newestSourceTime(root, executableInputs);
+  if (executable.mtimeMs < productionInputTime) {
     throw new Error('Executable predates a production input; rebuild the desktop application.');
   }
-  if (installer.mtimeMs < Math.max(executable.mtimeMs, newestSourceTime(root, ['src-tauri/windows']))) {
+  // Tauri 完成 NSIS 后恢复便携 EXE，允许最多一秒的收尾写入；生产输入及钩子仍严格比较。
+  if (installer.mtimeMs < Math.max(executable.mtimeMs - 1000, productionInputTime, newestSourceTime(root, ['src-tauri/windows']))) {
     throw new Error('Installer predates its executable or installation hooks; rebuild the desktop installer.');
   }
   requireFresh(uiFile, executable.mtimeMs, currentTime, 'Native UI evidence');

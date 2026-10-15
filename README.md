@@ -33,13 +33,15 @@ npm run release -- --with-diagnostics
 
 内置引擎诊断：发布程序 `SuperSearch.exe --smoke-test-bundled`，或开发目录 `node work/run-bundled-smoke.mjs`。只生成并索引独立测试目录，不依赖共享 Everything 服务，不执行用户文件动作。原 `--smoke-test` 仅保留为外部客户端的兼容诊断。
 
-测试套件包括 139 项前端/工具链测试、107 项 Rust 测试，另有 1 项外部客户端 opt-in 探针默认忽略。统一入口 `npm run verify -- --smoke --audit-rust` 依次运行测试、静态检查、前端构建、Rust 检查、生产 npm 依赖审计、隔离索引诊断和 Rust 审计，首次失败立即停止并写入 `test-results/verification.json`。索引诊断包括自有客户端异常退出恢复和缓存索引重启。以本轮报告中的实际运行结果为准。
+测试套件包括 142 项前端/工具链测试、107 项 Rust 测试，另有 1 项外部客户端 opt-in 探针默认忽略。统一入口 `npm run verify -- --smoke --audit-rust` 依次运行测试、静态检查、前端构建、Rust 检查、生产 npm 依赖审计、隔离索引诊断和 Rust 审计，首次失败立即停止并写入 `test-results/verification.json`。索引诊断包括自有客户端异常退出恢复和缓存索引重启。以本轮报告中的实际运行结果为准。
 
 原生 UI 与资源采样：先构建发布程序，再运行 `powershell -NoProfile -File scripts/benchmark.ps1`；报告写入 `test-results/ui-native-benchmark.json` 与 `test-results/resource-usage.json`。默认索引 483 个独立夹具；加 `-FixtureFiles 100000 -TimeoutSeconds 900` 可运行十万文件验收。首屏与最终结果分别计时，资源采样包含诊断进程的 WebView2 和 Everything 客户端。
 
 长期诊断：`npm run desktop:soak -- -DurationSeconds 1800`，反复隐藏、显示、搜索及收起窗口，并记录可见/隐藏空闲。原生诊断报告与按进程角色采样分别写入 `test-results/ui-native-soak.json`、`resource-soak.json` 和原始 `resource-soak-samples.ndjson`。长诊断窗口不接受人工交互或抢占焦点；CPU 按逻辑处理器总数归一化，空闲统计剔除跨阶段的采样区间，内存增长斜率不能单独证明泄漏。完整安装生命周期、真实输入法/多屏、睡眠唤醒和高速服务停止/恢复仍需适合的原生环境单独验收。
 
 本轮还增加固定容量的应用拼音衍生键缓存、修正“调音”的读音、支持服务恢复后按需从目录模式切回高速索引，并把呼出时可能等待后台 IPC 的状态检查移出 UI 线程。原有成功使用历史优先规则保留。交付会验证版本、构建时效、完整检查结果、EXE 哈希以及原生/资源报告和原始采样之间的哈希对应；失败时不更新 latest 指针。
+
+本轮完整验收、资源曲线、合成排序评估和未覆盖边界见 `outputs/Priority-Optimization-Report-2026-10-15.md`。30 分钟验收完成 60 轮窗口循环和 120 次搜索；资源数据仍观察到增长，不能据此认定不存在泄漏。
 
 ## 第三方软件
 

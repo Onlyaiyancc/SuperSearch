@@ -7,7 +7,7 @@ Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Vers
 Frontend (Svelte/TypeScript):
 ```bash
 npm ci                    # Install dependencies (package-lock.json locked)
-npm test                  # Run Vitest frontend/tooling tests (139 tests)
+npm test                  # Run Vitest frontend/tooling tests (142 tests)
 npm run check             # svelte-check + TypeScript validation
 npm run dev               # Vite dev server on http://127.0.0.1:1420
 npm run build             # Frontend build only (outputs to dist/)
