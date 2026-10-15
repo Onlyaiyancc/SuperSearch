@@ -1,0 +1,38 @@
+{
+  "name": "supersearch",
+  "version": "0.1.6",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "svelte-check --tsconfig ./tsconfig.json && vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "tauri": "tauri",
+    "desktop:dev": "node scripts/desktop.mjs dev",
+    "desktop:build": "node scripts/desktop.mjs build",
+    "desktop:test": "node scripts/desktop.mjs test",
+    "desktop:check": "node scripts/desktop.mjs check",
+    "desktop:smoke": "node scripts/desktop.mjs smoke",
+    "desktop:smoke:bundled": "node work/run-bundled-smoke.mjs",
+    "desktop:benchmark": "node scripts/desktop.mjs benchmark",
+    "desktop:audit": "node scripts/desktop.mjs audit",
+    "desktop:audit:install": "node scripts/desktop.mjs audit-install",
+    "desktop:soak": "powershell -NoProfile -File scripts/soak.ps1",
+    "release": "node scripts/release.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "lucide-svelte": "^0.468.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.0.0",
+    "@tauri-apps/cli": "^2.0.0",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.0.0",
+    "vitest": "^5.0.3"
+  }
+}

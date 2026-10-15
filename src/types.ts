@@ -1,0 +1,48 @@
+export type Scope = 'all' | 'apps' | 'files' | 'folders';
+export type ResultKind = 'application' | 'file' | 'folder';
+export type ResultAction = 'open' | 'reveal' | 'copyPath';
+export type ResultItem = {
+  resultId: string;
+  entityId: string;
+  kind: ResultKind;
+  title: string;
+  subtitle: string;
+  path?: string;
+  matchTier: number;
+  pinned: boolean;
+  available: boolean;
+  actions: string[];
+};
+export type Provider = {
+  id: string;
+  status: 'ready' | 'loading' | 'notRunning' | 'indexLoading' | 'unavailable' | 'notConfigured';
+  message: string;
+};
+export type FolderCompletion = { title: string; path: string; query: string };
+export type SearchSnapshot = {
+  requestId: string;
+  snapshotRevision: number;
+  scope: Scope;
+  complete: boolean;
+  items: ResultItem[];
+  providers: Provider[];
+  truncated: boolean;
+  hasMore: boolean;
+  directory?: string | null;
+  terms?: string[];
+  folderCompletions?: FolderCompletion[];
+};
+export type Settings = {
+  settingsVersion: number;
+  shortcut: string;
+  autostart: boolean;
+  recordHistory: boolean;
+  includeDesktop: boolean;
+  hideHidden: boolean;
+  hideSystem: boolean;
+  includeDirectories: string[];
+  excludeDirectories: string[];
+  everythingPath: string | null;
+  autoStartEverything: boolean;
+  theme: 'system' | 'light' | 'dark';
+};

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-tauri/target/
+.tools/
+test-results/
+*.log
+outputs/
+.omo/
+work/*
+!work/run-bundled-smoke.mjs

@@ -1,0 +1,16 @@
+# Search experience implementation plan
+
+> Execute the four improvements the user approved, using subagent-driven-development and focused tests. The workspace has no Git repository.
+
+**Goal:** Make directory scope visible, complete indexed folders using Tab, rank filename matches clearly and measure the real desktop input-to-render pipeline.
+
+**Architecture:** Keep one search request stream and the existing bounded Everything IPC worker. Add optional snapshot metadata for the parsed directory and at most five folder suggestions; resolve suggestions serially after the file query to avoid mailbox contention. UI keeps the compact idle bar, displays scope in the result header, folder candidates within the existing row budget, escaped text highlights and directory paths. Preserve successful-history priority. Record anonymous bounded timing samples per request, excluding stale replies and marking browser preview distinctly. Add an opt-in native benchmark mode with disposable fixtures to exercise startup, many results and rapid input through the real frontend and native backend; report render timing honestly as a frame proxy, without claiming physical display or human typing latency.
+
+**Tech stack:** Existing Svelte 5, TypeScript, Tauri 2, Rust and Everything 1.4; no added dependencies.
+
+- [x] Backend: tests before implementation for stem-exact filename tiers, safe completion parsing/direct-child boundary, filters and stale request behavior. Add `directory?: string | null` and `folderCompletions?: {title,path,query}[]` to snapshots, collect suggestions with existing index; cap five and preserve privacy filters. Enable layout only for current results/candidates.
+- [x] Frontend: tests for highlight segmentation, path labels, candidate cycling/reset/IME behavior and current snapshot layout. Show parsed directory in scope header, full folder paths and Tab hint; Tab cycles only current candidates, Ctrl+Tab unchanged; no accidental folder opening. Highlight match segments using text nodes; actual parent directory remains visible.
+- [x] Performance: anonymous in-memory sample recorder (bounded 100), first-result and settled frame latency, invoke duration, stale cancellation guards, p50/p95 with meaningful sample counts. Show/export in diagnostics. Opt-in native benchmark creates controlled filename fixtures, tests directory completion/ordering and rapid input, writes report inside workspace and exits; no real files opened.
+- [x] Verification: frontend/Rust tests, static check/release build, desktop benchmark and fast/folder diagnostics, independent spec then quality review, visual 680/360 light/dark checks, backup/update/restart portable artifacts, reports/hashes/docs. Existing machine installation state stays recorded accurately.
+
+**Acceptance:** No global false results for directory input; suggestions respect hidden/system/include/exclude rules; IME, stale snapshots, Enter, Ctrl+Tab, Esc and existing history priority preserved. Cold readiness reported separately from warm query latency; broad-result scenario and rapid-input scenario must show current query results. Suggestions and rendering stay within six visible rows and existing window-height calculations.
