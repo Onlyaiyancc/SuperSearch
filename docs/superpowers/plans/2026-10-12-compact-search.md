@@ -19,4 +19,4 @@ The user's selected screenshot is the visual target. Latest instruction override
 
 ## Visual acceptance
 
-Ivory canvas, white 80px search surface, 16px outer spacing, 15px corner radius, thin warm border, gold outline magnifier, natural Chinese font with muted placeholder, discreet Alt+Space badge. No decorative imagery or extra product features. Evaluate typography, whitespace, hierarchy, contrast, transitions, focus/hover, narrow viewport, dark mode, and reference fidelity. Record evidence and remaining limits in design-qa.md.
+Ivory canvas, white 80px search surface, 16px outer spacing, 15px corner radius, thin warm border, gold outline magnifier, natural Chinese font with muted placeholder, discreet Alt+Space badge. No decorative imagery or extra product features. Evaluate typography, whitespace, hierarchy, contrast, transitions, focus/hover, narrow viewport, dark mode, and reference fidelity. Record evidence and remaining limits in docs/design/qa.md.

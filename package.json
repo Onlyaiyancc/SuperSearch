@@ -2,6 +2,8 @@
   "name": "supersearch",
   "version": "0.1.6",
   "private": true,
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Onlyaiyancc/SuperSearch.git" },
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -14,13 +16,14 @@
     "desktop:test": "node scripts/desktop.mjs test",
     "desktop:check": "node scripts/desktop.mjs check",
     "desktop:smoke": "node scripts/desktop.mjs smoke",
-    "desktop:smoke:bundled": "node work/run-bundled-smoke.mjs",
+    "desktop:smoke:bundled": "node scripts/run-bundled-smoke.mjs",
     "desktop:benchmark": "node scripts/desktop.mjs benchmark",
     "desktop:audit": "node scripts/desktop.mjs audit",
     "desktop:audit:install": "node scripts/desktop.mjs audit-install",
     "desktop:soak": "powershell -NoProfile -File scripts/soak.ps1",
     "release": "node scripts/release.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

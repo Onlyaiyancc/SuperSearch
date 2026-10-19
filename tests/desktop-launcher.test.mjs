@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
@@ -26,39 +26,55 @@ function fixtureProject(cliSource) {
 }
 
 describe('desktop launcher commands', () => {
+  let fixturePath;
+  beforeEach(() => {
+    fixturePath = fixtureProject();
+    mkdirSync(join(fixturePath, '.tools/cargo/bin'), { recursive: true });
+    writeFileSync(join(fixturePath, '.tools/cargo/bin/cargo.exe'), 'fixture');
+  });
+  it('uses an installed Rust toolchain on a clean clone without replacing its homes', () => {
+    const fixture = fixtureProject();
+    const environment = { Path: 'system-bin', CARGO_HOME: 'existing-cargo', RUSTUP_HOME: 'existing-rustup' };
+    const launch = describeLaunch('test', fixture, environment);
+    expect(launch.command).toBe('cargo');
+    expect(launch.options.env.CARGO_HOME).toBe('existing-cargo');
+    expect(launch.options.env.RUSTUP_HOME).toBe('existing-rustup');
+    expect(launch.options.env.PATH).toBe('system-bin');
+  });
+
   it.each(['dev', 'build'])('runs the local Tauri CLI for %s', (mode) => {
-    const launch = describeLaunch(mode, projectPath, {});
+    const launch = describeLaunch(mode, fixturePath, {});
     expect(launch.command).toBe(process.execPath);
-    expect(launch.args).toEqual([join(projectPath, 'node_modules/@tauri-apps/cli/tauri.js'), mode]);
+    expect(launch.args).toEqual([join(fixturePath, 'node_modules/@tauri-apps/cli/tauri.js'), mode]);
   });
 
   it.each(['test', 'check'])('runs local cargo for %s', (mode) => {
-    const launch = describeLaunch(mode, projectPath, {});
-    expect(launch.command).toBe(join(projectPath, '.tools/cargo/bin/cargo.exe'));
+    const launch = describeLaunch(mode, fixturePath, {});
+    expect(launch.command).toBe(join(fixturePath, '.tools/cargo/bin/cargo.exe'));
     expect(launch.args).toEqual([mode, '--manifest-path', 'src-tauri/Cargo.toml']);
   });
 
   it('passes the smoke argument to the native app', () => {
-    const launch = describeLaunch('smoke', projectPath, {});
-    expect(launch.command).toBe(join(projectPath, '.tools/cargo/bin/cargo.exe'));
+    const launch = describeLaunch('smoke', fixturePath, {});
+    expect(launch.command).toBe(join(fixturePath, '.tools/cargo/bin/cargo.exe'));
     expect(launch.args).toEqual(['run', '--manifest-path', 'src-tauri/Cargo.toml', '--', '--smoke-test']);
   });
 
   it('rejects unsupported modes before launching anything', () => {
-    expect(() => describeLaunch('publish', projectPath, {})).toThrow('Unknown desktop mode: publish');
+    expect(() => describeLaunch('publish', fixturePath, {})).toThrow('Unknown desktop mode: publish');
   });
 
   it('installs the advisory auditor only through the project-local toolchain', () => {
-    const launch = describeLaunch('audit-install', projectPath, {});
-    expect(launch.command).toBe(join(projectPath, '.tools/cargo/bin/cargo.exe'));
+    const launch = describeLaunch('audit-install', fixturePath, {});
+    expect(launch.command).toBe(join(fixturePath, '.tools/cargo/bin/cargo.exe'));
     expect(launch.args).toEqual(['install', 'cargo-audit', '--locked']);
-    expect(launch.options.env.CARGO_HOME).toBe(join(projectPath, '.tools/cargo'));
+    expect(launch.options.env.CARGO_HOME).toBe(join(fixturePath, '.tools/cargo'));
   });
 
   it('forwards native test filters and exposes the isolated benchmark mode', () => {
-    expect(describeLaunch('test', projectPath, {}, ['ranking::tests', '--', '--nocapture']).args)
+    expect(describeLaunch('test', fixturePath, {}, ['ranking::tests', '--', '--nocapture']).args)
       .toEqual(['test', '--manifest-path', 'src-tauri/Cargo.toml', 'ranking::tests', '--', '--nocapture']);
-    expect(describeLaunch('benchmark', projectPath, {}).args)
+    expect(describeLaunch('benchmark', fixturePath, {}).args)
       .toEqual(['run', '--manifest-path', 'src-tauri/Cargo.toml', '--', '--ui-benchmark']);
   });
 
@@ -67,15 +83,15 @@ describe('desktop launcher commands', () => {
       Rustup_Home: 'global-rustup', NPM_CONFIG_CACHE: 'global-cache', Temp: 'global-temp',
       tmp: 'global-tmp', KEEP_ME: 'unchanged' };
     const before = { ...environment };
-    const { options } = describeLaunch('test', projectPath, environment);
-    expect(options).toMatchObject({ cwd: projectPath, stdio: 'inherit', windowsHide: true });
+    const { options } = describeLaunch('test', fixturePath, environment);
+    expect(options).toMatchObject({ cwd: fixturePath, stdio: 'inherit', windowsHide: true });
     expect(options.env).toEqual({
-      PATH: `${join(projectPath, '.tools/cargo/bin')}${delimiter}system-bin`,
-      CARGO_HOME: join(projectPath, '.tools/cargo'),
-      RUSTUP_HOME: join(projectPath, '.tools/rustup'),
-      npm_config_cache: join(projectPath, '.tools/npm-cache'),
-      TEMP: join(projectPath, '.tools/tmp'),
-      TMP: join(projectPath, '.tools/tmp'),
+      PATH: `${join(fixturePath, '.tools/cargo/bin')}${delimiter}system-bin`,
+      CARGO_HOME: join(fixturePath, '.tools/cargo'),
+      RUSTUP_HOME: join(fixturePath, '.tools/rustup'),
+      npm_config_cache: join(fixturePath, '.tools/npm-cache'),
+      TEMP: join(fixturePath, '.tools/tmp'),
+      TMP: join(fixturePath, '.tools/tmp'),
       KEEP_ME: 'unchanged',
     });
     expect(environment).toEqual(before);
@@ -92,13 +108,13 @@ describe('desktop launcher process behavior', () => {
     const result = spawnSync(process.execPath, [join(fixture, 'scripts/desktop.mjs'), 'build'], { encoding: 'utf8' });
     expect(result.status).toBe(7);
     expect(JSON.parse(result.stdout)).toEqual({ cwd: resolve(fixture),
-      cargo: join(fixture, '.tools/cargo'), temp: join(fixture, '.tools/tmp'), mode: 'build' });
+      ...(process.env.CARGO_HOME ? { cargo: process.env.CARGO_HOME } : {}), temp: join(fixture, '.tools/tmp'), mode: 'build' });
     expect(existsSync(join(fixture, '.tools/tmp'))).toBe(true);
   });
 
   it('reports child spawn errors with a failing exit code', () => {
     const fixture = fixtureProject();
-    const result = spawnSync(process.execPath, [join(fixture, 'scripts/desktop.mjs'), 'test'], { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [join(fixture, 'scripts/desktop.mjs'), 'test'], { encoding: 'utf8', env: { ...process.env, PATH: '', Path: '' } });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Failed to launch desktop test:');
     expect(result.stderr).toContain('ENOENT');

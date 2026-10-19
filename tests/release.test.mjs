@@ -7,7 +7,7 @@ import { parseReleaseArgs, publishRelease } from '../scripts/release.mjs';
 
 const roots = [];
 const now = new Date('2026-10-14T16:00:00.000Z');
-const output = 'outputs/Priority-Optimization-2026-10-15';
+const output = 'artifacts/releases/Priority-Optimization-2026-10-15';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
 function fixture() {
@@ -58,7 +58,7 @@ describe('release publication', () => {
     const { root, write, options } = fixture();
     write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 242_000);
     expect(() => publishRelease(options)).toThrow(/installer.*rebuild/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('applies no timestamp tolerance to production inputs changed after packaging', () => {
@@ -67,21 +67,21 @@ describe('release publication', () => {
     write('src-tauri/target/release/supersearch.exe', 'final executable', 119_975);
     write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 120_025);
     expect(() => publishRelease(options)).toThrow(/installer.*rebuild/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
   it.each(['src/App.svelte', 'src-tauri/src/engine.rs', 'index.html', 'src-tauri/vendor/bridge.c'])
   ('rejects a fresh verification of an executable built before %s changed', path => {
     const { root, write, options } = fixture();
     write(path, 'changed production input', 120_000);
     expect(() => publishRelease(options)).toThrow(/executable.*rebuild/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('rejects an installer built before the NSIS hook changed', () => {
     const { root, write, options } = fixture();
     write('src-tauri/windows/hooks.nsh', '; changed hook', 120_000);
     expect(() => publishRelease(options)).toThrow(/installer.*rebuild/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
   it.each(['valid', 'native', 'samples', 'scale'])('checks %s half-hour soak and scale evidence when requested', mode => {
     const { root, write, options, ui, resources } = fixture();
@@ -100,7 +100,7 @@ describe('release publication', () => {
       if (mode === 'samples') write('test-results/resource-soak-samples.ndjson', rawSamples + '{"timestampMs":1}\n');
       if (mode === 'scale') write('test-results/scale-native-benchmark.json', { ...scale, fixtureFiles: 200000 });
       expect(() => publishRelease({ ...options, diagnostics: true })).toThrow(/digest|paired/i);
-      expect(existsSync(join(root, 'outputs'))).toBe(false);
+      expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
       return;
     }
     const manifest = publishRelease({ ...options, diagnostics: true });
@@ -113,7 +113,7 @@ describe('release publication', () => {
     const { root, write, options, ui } = fixture();
     write('evidence/ui.json', { ...ui, fixtureFiles: 999 });
     expect(() => publishRelease(options)).toThrow(/native.*digest|native.*pair/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('rejects abbreviated or mismatched soak evidence before publishing', () => {
@@ -122,7 +122,7 @@ describe('release publication', () => {
     write('test-results/resource-soak.json', { outcome: 'passed', executableSha256: resources.executableSha256,
       sampleCount: 7, elapsedMs: 5000, roles: { webview: { samples: 7 } } });
     expect(() => publishRelease({ ...options, diagnostics: true })).toThrow(/soak/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
   it('copies final versioned artifacts and evidence, with verifiable manifest and atomic latest pointer', () => {
     const { root, options } = fixture();
@@ -140,10 +140,11 @@ describe('release publication', () => {
       const [hash, name] = line.split('  ');
       expect(hash).toBe(sha256(readFileSync(join(root, output, name))));
     }
-    const pointer = JSON.parse(readFileSync(join(root, 'outputs/Latest-Release.json'), 'utf8'));
+    const pointer = JSON.parse(readFileSync(join(root, 'artifacts/releases/Latest-Release.json'), 'utf8'));
     expect(pointer).toMatchObject({ version: '0.1.6', directory: output, executableSha256: sha256('final executable') });
     expect(pointer.manifestSha256).toBe(sha256(readFileSync(join(root, pointer.manifest))));
-    expect(readdirSync(join(root, 'outputs'))).toEqual(['Latest-Release.json', 'Priority-Optimization-2026-10-15']);
+    expect(readdirSync(join(root, 'artifacts/releases'))).toEqual(['Latest-Release.json', 'Priority-Optimization-2026-10-15']);
+    expect(existsSync(join(root, 'outputs'))).toBe(false);
   });
 
   it('produces identical release files given identical inputs and publication time', () => {
@@ -160,11 +161,11 @@ describe('release publication', () => {
     const { root, options } = fixture();
     publishRelease(options);
     const previous = readFileSync(join(root, output, 'Release-Manifest.json'));
-    publishRelease({ ...options, output: 'outputs/Next-Release' });
-    const latest = JSON.parse(readFileSync(join(root, 'outputs/Latest-Release.json'), 'utf8'));
-    expect(latest.directory).toBe('outputs/Next-Release');
+    publishRelease({ ...options, output: 'artifacts/releases/Next-Release' });
+    const latest = JSON.parse(readFileSync(join(root, 'artifacts/releases/Latest-Release.json'), 'utf8'));
+    expect(latest.directory).toBe('artifacts/releases/Next-Release');
     expect(readFileSync(join(root, output, 'Release-Manifest.json'))).toEqual(previous);
-    expect(readdirSync(join(root, 'outputs')).some(name => name.startsWith('.Latest-Release-'))).toBe(false);
+    expect(readdirSync(join(root, 'artifacts/releases')).some(name => name.startsWith('.Latest-Release-'))).toBe(false);
   });
 
   it('reads PowerShell UTF-8 reports with a BOM', () => {
@@ -176,24 +177,25 @@ describe('release publication', () => {
   it('refuses existing release directories and preserves existing evidence and latest pointer', () => {
     const { root, write, options } = fixture();
     write(`${output}/old-evidence.json`, 'keep this');
-    write('outputs/Latest-Release.json', 'keep pointer');
+    write('artifacts/releases/Latest-Release.json', 'keep pointer');
     expect(() => publishRelease(options)).toThrow(/already exists/i);
     expect(readFileSync(join(root, output, 'old-evidence.json'), 'utf8')).toBe('keep this');
-    expect(readFileSync(join(root, 'outputs/Latest-Release.json'), 'utf8')).toBe('keep pointer');
+    expect(readFileSync(join(root, 'artifacts/releases/Latest-Release.json'), 'utf8')).toBe('keep pointer');
   });
 
-  it.each(['../escape', 'outputs/../escape', 'outputs', 'outputs/nested/release', 'C:\\escape', '/escape', 'outputs/release.', 'outputs/CON', 'outputs/release:stream', 'outputs/.hidden'])
+  it.each(['../escape', 'artifacts/releases/../escape', 'outputs', 'artifacts/releases/nested/release', 'C:\\escape', '/escape', 'artifacts/releases/release.', 'artifacts/releases/CON', 'artifacts/releases/release:stream', 'artifacts/releases/.hidden'])
   ('rejects unsafe output %s before writing', unsafe => {
     const { root, options } = fixture();
     expect(() => publishRelease({ ...options, output: unsafe })).toThrow(/output/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
-  it('rejects an outputs junction instead of writing through it', () => {
+  it.each(['artifacts', 'artifacts/releases'])('rejects a %s junction instead of writing through it', linked => {
     const { root, options } = fixture();
     const outside = mkdtempSync(join(tmpdir(), 'supersearch-release-outside-'));
     roots.push(outside);
-    symlinkSync(outside, join(root, 'outputs'), 'junction');
+    mkdirSync(dirname(join(root, linked)), { recursive: true });
+    symlinkSync(outside, join(root, linked), 'junction');
     expect(() => publishRelease(options)).toThrow(/symbolic|junction/i);
     expect(readdirSync(outside)).toEqual([]);
   });
@@ -201,8 +203,8 @@ describe('release publication', () => {
   it('rejects a linked latest pointer and preserves its target', () => {
     const { root, write, options } = fixture();
     write('outside-pointer/old.json', 'old pointer');
-    mkdirSync(join(root, 'outputs'));
-    symlinkSync(join(root, 'outside-pointer'), join(root, 'outputs/Latest-Release.json'), 'junction');
+    mkdirSync(join(root, 'artifacts/releases'), { recursive: true });
+    symlinkSync(join(root, 'outside-pointer'), join(root, 'artifacts/releases/Latest-Release.json'), 'junction');
     expect(() => publishRelease(options)).toThrow(/symbolic|junction/i);
     expect(readFileSync(join(root, 'outside-pointer/old.json'), 'utf8')).toBe('old pointer');
     expect(existsSync(join(root, output))).toBe(false);
@@ -213,7 +215,7 @@ describe('release publication', () => {
     const { root, write, options } = fixture();
     write(path, path.endsWith('toml') ? '[package]\nversion = "9.0.0"' : { version: '9.0.0' }, 600_000);
     expect(() => publishRelease(options)).toThrow(/version/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it.each([
@@ -230,30 +232,30 @@ describe('release publication', () => {
     const { root, write, options, verification } = fixture();
     mutate(verification);
     write('evidence/checks.json', verification);
-    write('outputs/Latest-Release.json', 'old pointer');
+    write('artifacts/releases/Latest-Release.json', 'old pointer');
     expect(() => publishRelease(options)).toThrow(/verification/i);
     expect(existsSync(join(root, output))).toBe(false);
-    expect(readFileSync(join(root, 'outputs/Latest-Release.json'), 'utf8')).toBe('old pointer');
+    expect(readFileSync(join(root, 'artifacts/releases/Latest-Release.json'), 'utf8')).toBe('old pointer');
   });
 
   it('rejects verification older than changed source', () => {
     const { root, write, options } = fixture();
     write('src/App.svelte', '<main>Changed</main>', 30_000);
     expect(() => publishRelease(options)).toThrow(/verification.*source/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('rejects verification older than changed public assets', () => {
     const { root, write, options } = fixture();
     write('public/mark.svg', '<svg/>', 30_000);
     expect(() => publishRelease(options)).toThrow(/verification.*source/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('rejects evidence paths outside the project', () => {
     const { root, options } = fixture();
     expect(() => publishRelease({ ...options, evidence: { verification: '../checks.json' } })).toThrow(/unsafe/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it('rejects verification whose file predates the final installer', () => {
@@ -278,7 +280,7 @@ describe('release publication', () => {
     write('evidence/ui.json', ui);
     write('evidence/resources.json', resources);
     expect(() => publishRelease(options)).toThrow(/native|resource|executable/i);
-    expect(existsSync(join(root, 'outputs'))).toBe(false);
+    expect(existsSync(join(root, 'artifacts/releases'))).toBe(false);
   });
 
   it.each(['evidence/ui.json', 'evidence/resources.json'])('rejects stale %s', path => {
@@ -297,12 +299,12 @@ describe('release publication', () => {
 describe('release CLI options', () => {
   it('accepts explicit long-duration evidence without allowing arbitrary flags', () => {
     expect(parseReleaseArgs(['--with-diagnostics'])).toEqual({ output, diagnostics: true });
-    expect(parseReleaseArgs(['--output', 'outputs/Next-Release', '--with-diagnostics']))
-      .toEqual({ output: 'outputs/Next-Release', diagnostics: true });
+    expect(parseReleaseArgs(['--output', 'artifacts/releases/Next-Release', '--with-diagnostics']))
+      .toEqual({ output: 'artifacts/releases/Next-Release', diagnostics: true });
   });
   it('uses the requested default and accepts one explicit output', () => {
     expect(parseReleaseArgs([])).toEqual({ output });
-    expect(parseReleaseArgs(['--output', 'outputs/Next-Release'])).toEqual({ output: 'outputs/Next-Release' });
+    expect(parseReleaseArgs(['--output', 'artifacts/releases/Next-Release'])).toEqual({ output: 'artifacts/releases/Next-Release' });
   });
   it.each([['--force'], ['--output'], ['--output', output, '--force'], ['--output', output, '--output', output]].map(args => [args]))
   ('rejects unsupported or incomplete arguments %j', args => {

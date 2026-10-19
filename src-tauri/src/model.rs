@@ -26,6 +26,8 @@ pub struct ResultItem {
     pub pinned: bool,
     pub available: bool,
     pub actions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -12,6 +12,7 @@ export type ResultItem = {
   pinned: boolean;
   available: boolean;
   actions: string[];
+  aliases?: string[];
 };
 export type Provider = {
   id: string;

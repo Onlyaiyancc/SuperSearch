@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,15 +12,16 @@ export function describeLaunch(mode = 'dev', projectPath = projectRoot, environm
   }
 
   const cargoHome = join(projectPath, '.tools/cargo');
+  const localCargo = join(cargoHome, 'bin/cargo.exe');
+  const useLocalRust = existsSync(localCargo);
   const tempPath = join(projectPath, '.tools/tmp');
   const inheritedPath = Object.entries(environment).find(([key]) => key.toLowerCase() === 'path')?.[1];
   const overrides = {
-    CARGO_HOME: cargoHome,
-    RUSTUP_HOME: join(projectPath, '.tools/rustup'),
+    ...(useLocalRust ? { CARGO_HOME: cargoHome, RUSTUP_HOME: join(projectPath, '.tools/rustup') } : {}),
     npm_config_cache: join(projectPath, '.tools/npm-cache'),
     TEMP: tempPath,
     TMP: tempPath,
-    PATH: join(cargoHome, 'bin') + (inheritedPath ? delimiter + inheritedPath : ''),
+    PATH: useLocalRust ? join(cargoHome, 'bin') + (inheritedPath ? delimiter + inheritedPath : '') : inheritedPath ?? '',
   };
   // 只给子进程设置本地工具链，避免 Windows 环境变量出现大小写重复键。
   const overriddenKeys = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
@@ -30,7 +31,7 @@ export function describeLaunch(mode = 'dev', projectPath = projectRoot, environm
 
   const isTauri = mode === 'dev' || mode === 'build';
   return {
-    command: isTauri ? process.execPath : join(cargoHome, 'bin/cargo.exe'),
+    command: isTauri ? process.execPath : useLocalRust ? localCargo : 'cargo',
     args: isTauri
       ? [join(projectPath, 'node_modules/@tauri-apps/cli/tauri.js'), mode, ...extraArgs]
       : mode === 'smoke' || mode === 'benchmark'
@@ -52,7 +53,7 @@ if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
     mkdirSync(options.env.TEMP, { recursive: true });
     const child = spawn(command, args, options);
     child.on('error', (error) => {
-      console.error(`Failed to launch desktop ${mode}: ${error.message}`);
+      console.error(`Failed to launch desktop ${mode}: ${error.message}. Install Rust with the MSVC toolchain and restart your terminal; see docs/development.md.`);
       process.exitCode = 1;
     });
     child.on('exit', (code) => { process.exitCode = code ?? 1; });

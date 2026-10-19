@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { verificationSteps } from './verify.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
-const defaultOutput = 'outputs/Priority-Optimization-2026-10-15';
+const defaultOutput = 'artifacts/releases/Priority-Optimization-2026-10-15';
 const evidenceDefaults = {
   verification: 'test-results/verification.json',
   uiBenchmark: 'test-results/ui-native-benchmark.json',
@@ -15,7 +15,8 @@ const maximumEvidenceAgeMs = 24 * 60 * 60 * 1000;
 const executableInputs = ['src', 'public', 'index.html', 'svelte.config.js', 'src-tauri/src',
   'src-tauri/vendor', 'src-tauri/resources', 'src-tauri/icons', 'src-tauri/capabilities',
   'package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock',
-  'src-tauri/tauri.conf.json', 'src-tauri/build.rs', 'vite.config.ts', 'tsconfig.json'];
+  'src-tauri/tauri.conf.json', 'src-tauri/build.rs', 'vite.config.ts', 'tsconfig.json',
+  'LICENSE', 'THIRD-PARTY-NOTICES.md', 'docs/licenses'];
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const jsonBytes = value => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 
@@ -27,7 +28,7 @@ export function parseReleaseArgs(args) {
     else if (args[index] === '--output' && !outputSeen && args[index + 1] && !args[index + 1].startsWith('--')) {
       outputSeen = true;
       options.output = args[++index];
-    } else throw new Error('Unsupported release option. Usage: node scripts/release.mjs [--output outputs/<new-directory>] [--with-diagnostics]');
+    } else throw new Error('Unsupported release option. Usage: node scripts/release.mjs [--output artifacts/releases/<new-directory>] [--with-diagnostics]');
   }
   return options;
 }
@@ -92,14 +93,14 @@ export function publishRelease({ projectRoot = dirname(dirname(scriptPath)), out
   const root = realpathSync(projectRoot);
   const currentTime = new Date(now).getTime();
   if (!Number.isFinite(currentTime)) throw new Error('Invalid publication time.');
-  // 发布目录仅允许 outputs 下一个普通子目录，禁止路径遍历、设备名和备用数据流。
-  const match = typeof output === 'string' && output.match(/^outputs[\\/]([A-Za-z0-9][A-Za-z0-9._-]*)$/);
+  // 发布目录仅允许 artifacts/releases 下一个普通子目录，禁止路径遍历、设备名和备用数据流。
+  const match = typeof output === 'string' && output.match(/^artifacts[\\/]releases[\\/]([A-Za-z0-9][A-Za-z0-9._-]*)$/);
   if (!match || match[1].endsWith('.') || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(match[1])) {
-    throw new Error('Output must be a new directory directly under outputs.');
+    throw new Error('Output must be a new directory directly under artifacts/releases.');
   }
-  const outputDirectory = `outputs/${match[1]}`;
+  const outputDirectory = `artifacts/releases/${match[1]}`;
   const destination = checkedPath(root, outputDirectory);
-  const latestPath = checkedPath(root, 'outputs/Latest-Release.json');
+  const latestPath = checkedPath(root, 'artifacts/releases/Latest-Release.json');
   if (existsSync(destination)) throw new Error(`Release output already exists: ${outputDirectory}`);
   if (existsSync(latestPath) && !lstatSync(latestPath).isFile()) throw new Error('Latest release pointer must be a regular file.');
 
@@ -214,7 +215,7 @@ export function publishRelease({ projectRoot = dirname(dirname(scriptPath)), out
   const checksumLines = [...manifest.files, { name: 'Release-Manifest.json', sha256: hash(manifestBytes) }]
     .map(file => `${file.sha256}  ${file.name}`).join('\n') + '\n';
   // 独占创建发布目录和每个文件；保留已有证据，失败时不更新 latest 指针。
-  mkdirSync(checkedPath(root, 'outputs'), { recursive: true });
+  mkdirSync(checkedPath(root, 'artifacts/releases'), { recursive: true });
   mkdirSync(destination);
   for (const [name, file] of entries) {
     const target = join(destination, name);
@@ -228,7 +229,7 @@ export function publishRelease({ projectRoot = dirname(dirname(scriptPath)), out
     manifest: `${outputDirectory}/Release-Manifest.json`, manifestSha256: hash(manifestBytes),
     executableSha256: executable.sha256, installerSha256: installer.sha256, publishedAt: manifest.createdAt,
   };
-  const temporaryPointer = checkedPath(root, `outputs/.Latest-Release-${randomUUID()}.json`);
+  const temporaryPointer = checkedPath(root, `artifacts/releases/.Latest-Release-${randomUUID()}.json`);
   try {
     writeFileSync(temporaryPointer, jsonBytes(latest), { flag: 'wx' });
     renameSync(temporaryPointer, latestPath);

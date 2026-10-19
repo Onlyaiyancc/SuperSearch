@@ -162,7 +162,8 @@ fn snapshot(cache: &mut SearchCache, store: &Store, complete: bool) -> Result<Se
         if entry.launch_kind != "shell" { actions.extend(["reveal".into(), "copyPath".into()]); }
         let subtitle = if matches!(entry.kind.as_str(), "file" | "folder") { Path::new(&entry.locator).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| entry.subtitle.clone()) } else { entry.subtitle.clone() };
         let path = if matches!(entry.kind.as_str(), "file" | "folder") { entry.locator.clone() } else { String::new() };
-        let item = ResultItem { result_id: id.clone(), entity_id: entry.entity_id.clone(), kind: entry.kind.clone(), title: entry.title.clone(), subtitle, path, match_tier: tier, pinned: pins.contains(&entry.entity_id), available, actions };
+        let aliases = if entry.kind == "application" { entry.aliases.clone() } else { vec![] };
+        let item = ResultItem { result_id: id.clone(), entity_id: entry.entity_id.clone(), kind: entry.kind.clone(), title: entry.title.clone(), subtitle, path, match_tier: tier, pinned: pins.contains(&entry.entity_id), available, actions, aliases };
         cache.results.insert(id, entry);
         item
     }).collect();
@@ -180,7 +181,10 @@ fn initial_entries(store: &Store, spec: &query::QuerySpec) -> Result<Vec<Entry>,
     let pinned = store.pinned_entries()?;
     let pins = pinned.iter().map(|e| e.entity_id.clone()).collect();
     let usage = if settings.record_history { store.usage()? } else { HashMap::new() };
-    let mut entries: Vec<_> = ranking::rank_entries(store.apps(), spec, &usage, &pins).into_iter().take(50).map(|(e,_)|e).collect();
+    // 文件、文件夹和扩展名筛选无需复制应用目录；带 in: 的全部范围仍允许目录内应用。
+    let mut entries: Vec<_> = if matches!(spec.scope.as_str(), "all" | "apps") && spec.extensions.is_empty() {
+        ranking::rank_entries(store.apps(), spec, &usage, &pins).into_iter().take(50).map(|(e,_)|e).collect()
+    } else { vec![] };
     if spec.scope != "apps" {
         let mut historical: Vec<_> = pinned.into_iter().filter(|e| e.kind != "application").collect();
         if settings.record_history {
@@ -283,6 +287,108 @@ mod tests {
     }
     fn page(entries: Vec<Entry>) -> crate::everything::FilePage {
         crate::everything::FilePage { total: entries.len() as u32, entries, status: ProviderStatus { id: "everything".into(), status: "ready".into(), message: "Fixture index is ready".into() } }
+    }
+    #[test]
+    fn application_snapshot_preserves_aliases_for_editing_without_exposing_launch_data() {
+        let fixture = Fixture::new();
+        let store = fixture.store();
+        let mut entry = app_entry("Editor");
+        entry.aliases = vec!["Design, Tools".into(), "工作，应用".into()];
+        let mut cache = search_cache("editor", "apps", vec![entry]);
+        let result = serde_json::to_value(snapshot(&mut cache, &store, true).unwrap()).unwrap();
+        assert_eq!(result["items"][0]["aliases"], json!(["Design, Tools", "工作，应用"]));
+        assert!(result["items"][0].get("locator").is_none());
+        assert!(result["items"][0].get("launchKey").is_none());
+    }
+
+    #[test]
+    fn empty_successful_page_ends_pagination_but_failed_page_remains_retryable() {
+        let fixture = Fixture::new();
+        let store = fixture.store();
+        let mut cache = search_cache("report", "files", vec![]);
+        cache.request_id = "current".into();
+        cache.generation = cache.gate.begin("current").unwrap();
+        let generation = cache.generation;
+        let mut entry = file(r"D:\Work\report.txt", "file");
+        entry.title = "report.txt".into();
+        let mut first = page(vec![entry]);
+        first.total = 200;
+        apply_file_page(&mut cache, "current", generation, 0, Ok(first));
+        cache.loading_more = true;
+        apply_file_page(&mut cache, "current", generation, 1, Err("Timeout".into()));
+        assert!(!cache.loading_more);
+        assert!(snapshot(&mut cache, &store, true).unwrap().has_more);
+        let mut empty = page(vec![]);
+        empty.total = 200;
+        cache.loading_more = true;
+        apply_file_page(&mut cache, "current", generation, 1, Ok(empty));
+        let result = snapshot(&mut cache, &store, true).unwrap();
+        assert!(!result.has_more, "An empty page must not offer the same offset indefinitely");
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.providers[0].status, "ready");
+        assert!(!cache.loading_more);
+    }
+
+    #[test]
+    fn file_merge_preserves_identity_order_case_rules_and_budget() {
+        // 冻结旧算法仅供等价性与可选组件计时，不用于生产路径。
+        fn baseline(cache: &mut SearchCache, entries: impl IntoIterator<Item = Entry>) {
+            let mut count = cache.entries.iter().filter(|e| e.kind != "application").count();
+            for entry in entries {
+                if count >= 1000 { break; }
+                if cache.entries.iter().any(|e| e.kind == entry.kind && e.locator.eq_ignore_ascii_case(&entry.locator)) { continue; }
+                cache.entries.push(entry);
+                count += 1;
+            }
+        }
+        let mut first = file(r"D:\Work\Report.txt", "file");
+        first.entity_id = "original".into();
+        let initial = vec![app_entry("report"), first.clone()];
+        let mut duplicate = first.clone();
+        duplicate.entity_id = "duplicate".into();
+        duplicate.locator = duplicate.locator.to_ascii_lowercase();
+        let incoming = vec![duplicate, file(&first.locator, "folder"), file(r"D:\Work\Ä.txt", "file"), file(r"D:\Work\ä.txt", "file"), first];
+        let mut expected = search_cache("report", "all", initial.clone());
+        let mut actual = search_cache("report", "all", initial);
+        baseline(&mut expected, incoming.clone());
+        merge_file_entries(&mut actual, incoming);
+        assert_eq!(actual.entries, expected.entries);
+        assert_eq!(actual.entries.len(), 5);
+        assert_eq!(actual.entries[1].entity_id, "original");
+
+        for (existing, overlap) in [(0, 0), (200, 0), (800, 100), (950, 0), (1000, 0)] {
+            let make = |i| { let mut e = file(&format!(r"D:\Work\报告-{i:04}.txt"), "file"); e.entity_id = format!("file-{i}"); e };
+            let mut initial: Vec<_> = (0..existing).map(make).collect();
+            initial.push(app_entry("report"));
+            let incoming: Vec<_> = (existing - overlap..existing - overlap + 200).map(make).collect();
+            let mut expected = search_cache("report", "all", initial.clone());
+            let mut actual = search_cache("report", "all", initial.clone());
+            baseline(&mut expected, incoming.clone());
+            merge_file_entries(&mut actual, incoming.clone());
+            assert_eq!(actual.entries, expected.entries);
+            assert!(actual.entries.len() <= 1001);
+
+            if std::env::var_os("SUPERSEARCH_MERGE_BENCH").is_some() {
+                let mut samples = [vec![], vec![]];
+                for round in 0..9 {
+                    // 交替先后顺序；克隆夹具放在计时外，结果相等断言也不计入。
+                    for implementation in [round % 2, 1 - round % 2] {
+                        let mut elapsed = std::time::Duration::ZERO;
+                        for _ in 0..50 {
+                            let mut cache = search_cache("report", "all", initial.clone());
+                            let page = incoming.clone();
+                            let start = Instant::now();
+                            if implementation == 0 { baseline(&mut cache, page); } else { merge_file_entries(&mut cache, page); }
+                            elapsed += start.elapsed();
+                            assert_eq!(std::hint::black_box(&cache.entries), &expected.entries);
+                        }
+                        samples[implementation].push(elapsed.as_nanos() / 50);
+                    }
+                }
+                for values in &mut samples { values.sort_unstable(); }
+                println!("FILE_MERGE existing={existing} incoming=200 overlap={overlap} baseline_median_ns={} current_median_ns={}", samples[0][4], samples[1][4]);
+            }
+        }
     }
     #[test]
     fn file_query_submission_is_atomic_but_waiting_allows_new_input() {
@@ -489,6 +595,68 @@ mod tests {
         let entries = initial_entries(&store, &query::parse("report", "files").unwrap()).unwrap();
         assert_eq!(entries.len(),50);
         assert_eq!(entries[0].title,"Report 00.txt");
+    }
+    #[test]
+    fn catalog_workload_preserves_scoped_results_and_reports_avoided_copies() {
+        // 测试中保留原先的目录加载路径；两侧共用当前排序器，只比较目录复制的开销。
+        fn before(store: &Store, spec: &query::QuerySpec) -> Result<Vec<Entry>, String> {
+            if blank_query(spec) { return Ok(vec![]); }
+            let settings = store.settings();
+            let pinned = store.pinned_entries()?;
+            let pins = pinned.iter().map(|e| e.entity_id.clone()).collect();
+            let usage = if settings.record_history { store.usage()? } else { HashMap::new() };
+            let mut entries: Vec<_> = ranking::rank_entries(store.apps(), spec, &usage, &pins).into_iter().take(50).map(|(e,_)|e).collect();
+            if spec.scope != "apps" {
+                let mut historical: Vec<_> = pinned.into_iter().filter(|e| e.kind != "application").collect();
+                if settings.record_history {
+                    historical.extend(store.usage_entries()?.into_iter().filter(|(e,s)| e.kind != "application" && s.success_count > 0).map(|(e,_)|e));
+                }
+                historical.retain(|e| visible_directory(e, &settings));
+                entries.extend(ranking::rank_entries(historical, spec, &usage, &pins).into_iter().take(50).filter_map(|(e,_)| {
+                    let metadata = std::fs::metadata(&e.locator).ok()?;
+                    if (e.kind == "file" && !metadata.is_file()) || (e.kind == "folder" && !metadata.is_dir()) || !visible_attributes(&metadata, &settings) { return None; }
+                    Some(e)
+                }));
+            }
+            Ok(entries)
+        }
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        store.replace_discovered_apps((0..1000).map(|index| app_entry(&format!("Report App {index:04}"))).collect()).unwrap();
+        let history = fixture_file(&fixture, "Report notes.txt");
+        store.record_open(&history).unwrap();
+        let pinned = fixture_file(&fixture, "Report pinned.txt");
+        store.pin(&pinned).unwrap();
+        assert_eq!(store.app_count(), 1000);
+        let mut directory_app = app_entry("Report Inside");
+        directory_app.locator = fixture.0.join("Report Inside.exe").to_string_lossy().into_owned();
+        store.add_manual_app(directory_app.clone()).unwrap();
+        let directory_spec = query::parse(&format!("report in:\"{}\"", fixture.0.display()), "all").unwrap();
+        assert!(initial_entries(&store, &directory_spec).unwrap().iter().any(|entry| entry.entity_id == directory_app.entity_id));
+        for (raw, scope) in [("report", "files"), ("report", "folders"), ("report ext:txt", "all"), ("report", "apps"), ("report", "all")] {
+            let spec = query::parse(raw, scope).unwrap();
+            assert_eq!(initial_entries(&store, &spec).unwrap(), before(&store, &spec).unwrap());
+            if scope == "files" {
+                let items = initial_entries(&store, &spec).unwrap();
+                assert!(items.iter().any(|entry| entry.entity_id == history.entity_id));
+                assert!(items.iter().any(|entry| entry.entity_id == pinned.entity_id));
+            }
+            let mut samples = [Vec::new(), Vec::new()];
+            for round in 0..7 {
+                for implementation in if round % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let started = Instant::now();
+                    for _ in 0..40 {
+                        let result = if implementation == 0 { before(&store, &spec) } else { initial_entries(&store, &spec) }.unwrap();
+                        std::hint::black_box(result);
+                    }
+                    samples[implementation].push(started.elapsed().as_secs_f64() * 1000.0);
+                }
+            }
+            for (index, name) in ["before", "after"].into_iter().enumerate() {
+                samples[index].sort_by(f64::total_cmp);
+                println!("Catalog workload scope={scope} query={raw:?} ({name}): samples=7 queriesPerSample=40 apps={} medianMs={:.3} minMs={:.3} maxMs={:.3}", store.app_count(), samples[index][3], samples[index][0], samples[index][6]);
+            }
+        }
     }
     #[test]
     fn late_results_layout_cannot_expand_invalidated_or_blank_search() {
@@ -704,7 +872,7 @@ pub fn start_search(app: AppHandle, request_id: String, raw_query: String, scope
     let empty = blank_query(&spec);
     let files = spec.scope != "apps" && !empty;
     cache.entries = initial_entries(&store, &spec)?;
-    cache.providers = vec![apps_provider_status(state.refreshing.load(Ordering::Acquire), lock(&state.apps_error)?.as_deref(), store.apps().len())];
+    cache.providers = vec![apps_provider_status(state.refreshing.load(Ordering::Acquire), lock(&state.apps_error)?.as_deref(), store.app_count())];
     let file_status = if files { ProviderStatus { id:"everything".into(),status:"loading".into(),message:"Searching file names…".into() } } else { state.everything.cached_status() };
     cache.providers.push(file_status);
     let shortcut_error = lock(&state.shortcut_error)?;
@@ -786,9 +954,12 @@ fn finish_files(app: AppHandle, request: String, generation: u64, expression: St
 
 fn merge_file_entries(cache: &mut SearchCache, entries: impl IntoIterator<Item = Entry>) {
     let mut count = cache.entries.iter().filter(|e| e.kind != "application").count();
+    if count >= 1000 { return; }
+    // 每页只建立一次索引，沿用原先 ASCII 忽略大小写规则与首项优先顺序。
+    let mut seen: HashSet<_> = cache.entries.iter().map(|e| (e.kind.clone(), e.locator.to_ascii_lowercase())).collect();
     for entry in entries {
         if count >= 1000 { break; }
-        if cache.entries.iter().any(|e| e.kind == entry.kind && e.locator.eq_ignore_ascii_case(&entry.locator)) { continue; }
+        if !seen.insert((entry.kind.clone(), entry.locator.to_ascii_lowercase())) { continue; }
         cache.entries.push(entry);
         count += 1;
     }
@@ -825,7 +996,8 @@ fn apply_file_page(
     match outcome {
         Ok(page) => {
             cache.offset = offset + page.entries.len() as u32;
-            cache.total = page.total;
+            // 索引在分页间变化可能返回空页；停止重复请求同一偏移，错误页仍允许重试。
+            cache.total = if page.entries.is_empty() { page.total.min(offset) } else { page.total };
             merge_file_entries(cache, page.entries);
             cache.providers.push(page.status);
         }
@@ -979,7 +1151,7 @@ pub fn refresh_in_background(app: AppHandle) {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let result = refresh_catalog(&state.store, &state.refreshing, &state.apps_error, &state.last_refresh, platform::discover_apps);
-        let count = state.store.lock().map(|store| store.apps().len()).unwrap_or(0);
+        let count = state.store.lock().map(|store| store.app_count()).unwrap_or(0);
         let _ = app.emit("apps_status", apps_provider_status(false, result.as_ref().err().map(String::as_str), count));
     });
 }
@@ -1035,7 +1207,7 @@ pub async fn get_provider_status(app: AppHandle) -> Result<Vec<ProviderStatus>, 
 fn collect_provider_status(state: &AppState) -> Result<Vec<ProviderStatus>, String> {
     // 状态检查可能等待原生 IPC；等待期间不占用应用目录锁。
     let status = state.everything.status();
-    let count = lock(&state.store)?.apps().len();
+    let count = lock(&state.store)?.app_count();
     let apps_status = apps_provider_status(state.refreshing.load(Ordering::Acquire), lock(&state.apps_error)?.as_deref(), count);
     let mut results = vec![apps_status,status];
     let shortcut_error = lock(&state.shortcut_error)?;
@@ -1093,5 +1265,5 @@ pub fn hide_window(app: AppHandle) {
 
 #[tauri::command]
 pub fn get_diagnostics(state: State<AppState>) -> Result<Value, String> {
-    Ok(json!({"application":"SuperSearch","version":env!("CARGO_PKG_VERSION"),"platform":"Windows x64","appCount":lock(&state.store)?.apps().len(),"providers":state.everything.status(),"engine":state.everything.diagnostics(),"telemetry":false,"queryLogging":false,"timestamp":SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()}))
+    Ok(json!({"application":"SuperSearch","version":env!("CARGO_PKG_VERSION"),"platform":"Windows x64","appCount":lock(&state.store)?.app_count(),"providers":state.everything.status(),"engine":state.everything.diagnostics(),"telemetry":false,"queryLogging":false,"timestamp":SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()}))
 }

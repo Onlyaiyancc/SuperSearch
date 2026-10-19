@@ -1,50 +1,64 @@
 # SuperSearch
 
-专注应用启动与文件/文件夹名称查找的 Windows 桌面搜索器。当前版本 **0.1.6，本地测试版，未签名**。
+面向 Windows 的应用启动与文件名称搜索工具，基于 Tauri 2、Rust、Svelte 5 和 Everything SDK。简体中文界面，支持拼音匹配、快捷键呼出、文件搜索与本地使用历史排序。
 
-界面为银白中性灰搜索栏，默认 680×76，中文输入与反馈。结果区高度为 172＋76×行数，最多六行；设置窗口高 620。呼出清空，有结果才展开，使用过的匹配项优先。无匹配 Enter 用 Bing 搜索，Shift＋Enter 强制网页搜索；同一次运行中保留拖动后的窗口位置。
+当前版本 **0.1.6，早期测试版，未签名**。仅支持 Windows x64，需要 WebView2 Runtime。
 
-Everything 原厂签名后台程序和许可证已内置。机器安装包通过一次管理员授权安装 SuperSearch 专属服务；普通用户客户端自动使用固定 NTFS 磁盘的 MFT/USN 高速索引。其它文件系统和服务缺失时回退目录扫描，不改变已有 Everything。界面采用银白、炭灰与黑白应用图标。客户端异常退出或专属服务停止时，下次查询/状态检查会尝试恢复；每 30 秒最多两次自动恢复，设置中的手动重启可重置限制。仍需系统 WebView2。
+![搜索界面：合成样例数据](docs/images/search-preview.png)
 
-## 使用与交付
+## 下载与使用
 
-本轮交付目录为 `outputs/Priority-Optimization-2026-10-15/`，运行其中的 `SuperSearch_0.1.6_x64-setup.exe` 或 `SuperSearch.exe`。发布完成后，`outputs/Latest-Release.json` 指向最新经过校验的交付。使用便携程序前先从托盘退出已经运行的旧程序，再启动新构建。默认托盘待命，Alt＋Space 呼出；鼠标悬停左侧放大镜时显示齿轮，点击进入设置，也可按 Ctrl＋,。键盘聚焦该入口时同样显示齿轮。搜索栏右侧不显示“设置”文字，启动快捷键可在悬停提示和设置页查看。
+公开测试安装包和便携 ZIP 将发布在 [GitHub Releases](https://github.com/Onlyaiyancc/SuperSearch/releases)。若页面尚无版本，请按[开发文档](docs/development.md)从源码构建。下载后可用随版本提供的 SHA256SUMS.txt 校验文件；未签名程序可能触发 Windows SmartScreen 提示。
 
-说明、技术文档、设计对照、验收记录、引擎来源/许可证和校验值位于 outputs/。浏览器预览只有标注样例，拒绝系统与后台引擎动作。
+- 默认 **Alt＋Space** 呼出，**Ctrl＋,** 打开设置。
+- 输入名称或拼音查找应用、文件及文件夹，方向键选择，Enter 打开，Tab 补全。
+- 成功打开过的匹配项优先；无本地匹配时 Enter 使用必应搜索，Shift＋Enter 强制网页搜索。
+- 支持别名、固定项目、搜索范围，以及浅色、深色和跟随系统主题。
+
+安装包通过管理员授权安装独立的 `Everything (SuperSearch)` 服务，为 NTFS 固定磁盘提供高速索引，避免与个人 Everything 安装混用。服务不可用或其它文件系统使用目录扫描。首次建立索引需要时间；设置页会在打开索引面板时持续刷新加载状态。
+
+升级前先从托盘退出旧实例。便携 ZIP 需保留随附许可文件；完整安装体验和服务注册使用安装包。
+
+## 数据与限制
+
+普通运行默认不发送遥测。使用历史和设置保存在本机，可在设置中关闭历史记录或清除数据。主动触发网页搜索时，查询会交给默认浏览器和必应。
+
+浏览器预览和本页截图使用合成样例，不执行本地搜索或启动操作。当前主要覆盖自动化测试及隔离索引诊断；真实输入法、多屏、安装升级卸载和睡眠唤醒仍需持续验收。短时测试不能证明长期资源表现。
+
+![设置界面：浏览器样例](docs/images/settings-preview.png)
 
 ## 开发
 
-Tauri2 / Rust / Svelte5 / Everything SDK / SQLite，依赖由 package-lock.json 与 Cargo.lock 固定。项目工具链入口只为子进程设置本地环境，不改全局 PATH。
+准备 Windows x64、Node.js 24 LTS、Rust stable MSVC、Visual Studio C++ Build Tools 和 WebView2，然后运行：
 
 ```powershell
 npm ci
-npm test
-npm run check
-npm run desktop:test
-npm run desktop:check
 npm run desktop:dev
-npm run desktop:build
-npm run verify -- --smoke
-npm run desktop:audit:install
-npm run verify -- --smoke --audit-rust
-npm run desktop:soak -- -DurationSeconds 1800
-npm run release -- --with-diagnostics
 ```
 
-内置引擎诊断：发布程序 `SuperSearch.exe --smoke-test-bundled`，或开发目录 `node work/run-bundled-smoke.mjs`。只生成并索引独立测试目录，不依赖共享 Everything 服务，不执行用户文件动作。原 `--smoke-test` 仅保留为外部客户端的兼容诊断。
+检查与构建：
 
-测试套件包括 142 项前端/工具链测试、107 项 Rust 测试，另有 1 项外部客户端 opt-in 探针默认忽略。统一入口 `npm run verify -- --smoke --audit-rust` 依次运行测试、静态检查、前端构建、Rust 检查、生产 npm 依赖审计、隔离索引诊断和 Rust 审计，首次失败立即停止并写入 `test-results/verification.json`。索引诊断包括自有客户端异常退出恢复和缓存索引重启。以本轮报告中的实际运行结果为准。
+```powershell
+npm run verify -- --smoke
+npm run notices -- --check
+npm run desktop:build
+```
 
-原生 UI 与资源采样：先构建发布程序，再运行 `powershell -NoProfile -File scripts/benchmark.ps1`；报告写入 `test-results/ui-native-benchmark.json` 与 `test-results/resource-usage.json`。默认索引 483 个独立夹具；加 `-FixtureFiles 100000 -TimeoutSeconds 900` 可运行十万文件验收。首屏与最终结果分别计时，资源采样包含诊断进程的 WebView2 和 Everything 客户端。
+Rust 命令统一使用 `npm run desktop:*`。启动器优先使用已有项目本地工具链，缺少时使用标准安装的 Rust，不需要复制维护者的 `.tools/`。完整步骤见[开发与构建](docs/development.md)，发布流程见[发布指南](docs/releasing.md)。
 
-长期诊断：`npm run desktop:soak -- -DurationSeconds 1800`，反复隐藏、显示、搜索及收起窗口，并记录可见/隐藏空闲。原生诊断报告与按进程角色采样分别写入 `test-results/ui-native-soak.json`、`resource-soak.json` 和原始 `resource-soak-samples.ndjson`。长诊断窗口不接受人工交互或抢占焦点；CPU 按逻辑处理器总数归一化，空闲统计剔除跨阶段的采样区间，内存增长斜率不能单独证明泄漏。完整安装生命周期、真实输入法/多屏、睡眠唤醒和高速服务停止/恢复仍需适合的原生环境单独验收。
+| 目录 | 内容 |
+| --- | --- |
+| [src](src/) | Svelte / TypeScript 前端 |
+| [src-tauri](src-tauri/) | Rust 后端、安装器、内置引擎与原始许可 |
+| [public](public/) | 静态资源与图标源文件 |
+| [scripts](scripts/) | 构建、诊断、许可生成与发布工具 |
+| [tests](tests/) | 前端和工具链测试 |
+| [docs](docs/README.md) | 开发、设计、验证范围与发布说明 |
 
-本轮还增加固定容量的应用拼音衍生键缓存、修正“调音”的读音、支持服务恢复后按需从目录模式切回高速索引，并把呼出时可能等待后台 IPC 的状态检查移出 UI 线程。原有成功使用历史优先规则保留。交付会验证版本、构建时效、完整检查结果、EXE 哈希以及原生/资源报告和原始采样之间的哈希对应；失败时不更新 latest 指针。
+依赖、构建缓存、个人工具配置、诊断和本地交付归档不提交到 Git。根目录只保留常见项目文件与必要目录；本地交付放在 `artifacts/releases/`，历史材料放在 `artifacts/archive/`。
 
-本轮完整验收、资源曲线、合成排序评估和未覆盖边界见 `outputs/Priority-Optimization-Report-2026-10-15.md`。30 分钟验收完成 60 轮窗口循环和 120 次搜索；资源数据仍观察到增长，不能据此认定不存在泄漏。
+## 参与和许可
 
-## 第三方软件
+欢迎提交可复现的问题和改进，参见 [CONTRIBUTING.md](CONTRIBUTING.md)。漏洞报告方式见 [SECURITY.md](SECURITY.md)。
 
-SDK 来源与原始许可在 src-tauri/vendor/；内置 unmodified signed Everything.exe 和完整声明在 src-tauri/resources/everything/，来源/版本/哈希已记录。后台仍为独立进程，SDK 只是 IPC 桥接，不是独立索引引擎库。
-
-高速诊断：`SuperSearch.exe --smoke-test-fast`，需要专属服务运行；报告验证创建/改名/删除和目录过滤。视觉验收见 `design-qa.md`。历史启用记录 `outputs/Fast-Activation-Report.json` 不代表当前机器的服务状态，应以程序诊断或本次测试报告为准。
+SuperSearch 原创代码使用 [MIT 许可证](LICENSE)。内置的未修改 Everything 程序、Everything SDK 和其它依赖保留各自许可；MIT 不覆盖这些组件。详见[第三方声明](THIRD-PARTY-NOTICES.md)及[依赖许可全文](docs/licenses/THIRD-PARTY-LICENSES.txt)。本项目不隶属于 voidtools，也不代表其背书。

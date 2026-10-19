@@ -1,0 +1,27 @@
+name: Bug report / 问题反馈
+description: Report a reproducible problem without personal data.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: SuperSearch version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Windows version and installation mode
+      description: Include Windows version, installer/portable mode and index status. Do not include account names or personal paths.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized screenshots or diagnostics
+      description: Remove private paths, queries, tokens and device details before uploading.

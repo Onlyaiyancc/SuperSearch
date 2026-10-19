@@ -6,7 +6,7 @@
 
 **Tech stack:** Rust, Everything SDK, Tauri 2, Svelte 5, Vitest 5, Node.js.
 
-This folder has no Git metadata. Originals are backed up in `work/optimization-2026-10-14/originals`; no Git commits or worktrees are available.
+This folder has no Git metadata. Originals are backed up in `artifacts/archive/2026-10-19/work/optimization-2026-10-14/originals`; no Git commits or worktrees are available.
 
 ## 1. Stability
 - [x] Capture baseline: 61 frontend tests; 86 Rust tests passed, one opt-in probe ignored.
@@ -33,7 +33,7 @@ This folder has no Git metadata. Originals are backed up in `work/optimization-2
 - [x] Add a single verification command covering frontend tests/check/build, Rust tests/check and optional isolated smoke tests; stop on failures and save JSON results.
 - [x] Add wrapper-supported Rust audit when available, retain production npm audit, and report unavailable audit tooling honestly (cargo-audit is not installed locally).
 - [x] Correct current README/AGENTS dimensions, colors and test information. Keep historical acceptance reports unchanged.
-- [x] Save fresh optimization evidence in `outputs/Optimization-Report-2026-10-14.md` and delivery artifacts/reports in `outputs/Optimization-2026-10-14/`.
+- [x] Save fresh optimization evidence in `artifacts/archive/2026-10-19/outputs/Optimization-Report-2026-10-14.md` and delivery artifacts/reports in `artifacts/archive/2026-10-19/outputs/Optimization-2026-10-14/`.
 
 ## Acceptance boundaries
 All added behavior must have regression evidence. Full machine installation/upgrade/UAC cancellation, real IME/multi-monitor interactions and long-duration resource soak remain explicit manual acceptance tasks; isolated smoke tests do not substitute for them. Performance figures are single-machine diagnostics, not cross-machine guarantees.

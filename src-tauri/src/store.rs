@@ -113,6 +113,10 @@ impl Store {
         self.apps.clone()
     }
 
+    pub fn app_count(&self) -> usize {
+        self.apps.len()
+    }
+
     pub fn replace_discovered_apps(&mut self, entries: Vec<Entry>) -> Result<(), String> {
         if entries.len() > 10000 {
             return Err("Application catalog limit reached".into());

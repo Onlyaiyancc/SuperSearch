@@ -44,7 +44,10 @@
     "category": "Utility",
     "resources": {
       "resources/everything/Everything.exe": "engine/Everything.exe",
-      "resources/everything/License.txt": "engine/License.txt"
+      "resources/everything/License.txt": "engine/License.txt",
+      "../LICENSE": "licenses/LICENSE.txt",
+      "../THIRD-PARTY-NOTICES.md": "licenses/THIRD-PARTY-NOTICES.md",
+      "../docs/licenses/THIRD-PARTY-LICENSES.txt": "licenses/THIRD-PARTY-LICENSES.txt"
     },
     "windows": {
       "nsis": {

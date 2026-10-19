@@ -3,6 +3,8 @@ name = "supersearch"
 version = "0.1.6"
 description = "A focused offline Windows search launcher"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/Onlyaiyancc/SuperSearch"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

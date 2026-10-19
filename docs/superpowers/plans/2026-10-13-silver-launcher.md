@@ -12,7 +12,7 @@
 - [x] Add clearly labeled design preview samples to `src/bridge.ts`, keeping native preview boundaries intact.
 - [x] Convert the generated mark through `scripts/build-icons.py` into PNG, multi-resolution ICO, and 32px RGBA tray assets; update favicon.
 - [x] Run frontend tests, Svelte validation, Rust tests/check and production desktop build. Existing tests cover IPC, IME, search state and layout; verify presentation changes through real browser interaction.
-- [x] Compare browser captures to `outputs/Silver-UI-QA/reference.png`; check 680px and 360px layouts, themes, settings, menus, dialogs and keyboard use. Record evidence in `design-qa.md`.
+- [x] Compare browser captures to `artifacts/archive/2026-10-19/outputs/Silver-UI-QA/reference.png`; check 680px and 360px layouts, themes, settings, menus, dialogs and keyboard use. Record evidence in `docs/design/qa.md`.
 
-The workspace has no Git metadata. Preserve pre-change source copies in `work/silver-redesign`; do not create a repository or commit unrelated files.
+The workspace has no Git metadata. Preserve pre-change source copies in `artifacts/archive/2026-10-19/work/silver-redesign`; do not create a repository or commit unrelated files.
 

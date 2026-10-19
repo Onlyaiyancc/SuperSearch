@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/Onlyaiyancc/SuperSearch/security/advisories/new
+    about: Report vulnerabilities privately when available; see SECURITY.md for the fallback channel.

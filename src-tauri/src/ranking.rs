@@ -12,17 +12,21 @@ pub fn normalize(text: &str) -> String {
 
 pub fn match_tier(entry: &Entry, spec: &QuerySpec) -> Option<u8> {
     let terms: Vec<_> = spec.terms.iter().map(|term| normalize(term)).collect();
-    match_normalized(entry, spec, &terms, &terms.join(" "), &normalize(&entry.title))
+    match_normalized(entry, spec, &terms, &terms.join(" "), &normalize(&entry.title)).map(|(tier, _)| tier)
 }
 
-fn match_normalized(entry: &Entry, spec: &QuerySpec, terms: &[String], joined: &str, title: &str) -> Option<u8> {
-    let app = entry.kind == "application";
-    if (spec.scope == "apps" && !app)
-        || (spec.scope == "files" && entry.kind != "file")
-        || (spec.scope == "folders" && entry.kind != "folder")
-    {
-        return None;
+fn in_scope(entry: &Entry, spec: &QuerySpec) -> bool {
+    match spec.scope.as_str() {
+        "apps" => entry.kind == "application",
+        "files" => entry.kind == "file",
+        "folders" => entry.kind == "folder",
+        _ => true,
     }
+}
+
+fn match_normalized(entry: &Entry, spec: &QuerySpec, terms: &[String], joined: &str, title: &str) -> Option<(u8, u8)> {
+    if !in_scope(entry, spec) { return None; }
+    let app = entry.kind == "application";
     if let Some(directory) = &spec.directory {
         if !crate::query::directory_matches(&entry.locator, directory) {
             return None;
@@ -39,40 +43,48 @@ fn match_normalized(entry: &Entry, spec: &QuerySpec, terms: &[String], joined: &
         }
     }
     if spec.terms.is_empty() {
-        return Some(2);
+        return Some((2, 0));
     }
     let exact_stem = entry.kind == "file" && title.rsplit_once('.').is_some_and(|(stem, _)| !stem.is_empty() && stem == joined);
-    if title == joined || exact_stem || (app && entry.aliases.iter().any(|a| normalize(a) == joined)) {
-        return Some(0);
+    if title == joined || exact_stem {
+        return Some((0, 0));
     }
+    // 别名每个候选只规范化一次；显式完整别名仍采用精确匹配等级。
+    let alias_match = if app { entry.aliases.iter().filter_map(|alias| {
+        let alias = normalize(alias);
+        if alias == joined { Some(0) }
+        else if terms.iter().all(|term| alias.contains(term)) { Some(3) }
+        else { None }
+    }).min() } else { None };
+    if alias_match == Some(0) { return Some((0, 0)); }
     if title.starts_with(joined) {
-        return Some(1);
+        return Some((1, 0));
     }
     if terms.iter().all(|t| title.contains(t)) {
-        return Some(2);
+        return Some((2, 0));
     }
     if !app {
         return None;
     }
-    if entry
-        .aliases
-        .iter()
-        .any(|a| terms.iter().all(|t| normalize(a).contains(t)))
-    {
-        return Some(3);
-    }
     let keys = application_keys(title);
+    // 保留公开等级，在同级内部区分完整拼音、完整缩写、前缀和部分匹配。
+    if keys.full == joined { return Some((3, 0)); }
+    if keys.initials == joined { return Some((3, 1)); }
+    if keys.full.starts_with(joined) || keys.initials.starts_with(joined) { return Some((3, 2)); }
     if terms
         .iter()
         .all(|t| keys.full.contains(t) || keys.initials.contains(t))
+        || alias_match.is_some()
     {
-        return Some(3);
+        return Some((3, 3));
     }
+    if keys.acronym == joined { return Some((4, 0)); }
+    if keys.acronym.starts_with(joined) { return Some((4, 1)); }
     if terms
         .iter()
         .all(|t| keys.acronym.contains(t) || (t.chars().count() >= 2 && subsequence(t, title)))
     {
-        return Some(4);
+        return Some((4, 2));
     }
     None
 }
@@ -190,6 +202,10 @@ pub fn rank_entries(
     let mut ranked: Vec<_> = entries
         .into_iter()
         .filter_map(|e| {
+            // 排除范围外条目时不生成标题或路径键；未匹配的重复目标不占去重名额。
+            if !in_scope(&e, spec) { return None; }
+            let title = normalize(&e.title);
+            let (tier, precision) = match_normalized(&e, spec, &terms, &joined, &title)?;
             let key = if e.kind == "application" {
                 format!("app:{}", e.launch_key)
             } else {
@@ -198,17 +214,16 @@ pub fn rank_entries(
             if !unique.insert(key) {
                 return None;
             }
-            let title = normalize(&e.title);
-            let tier = match_normalized(&e, spec, &terms, &joined, &title)?;
             let used = usage.get(&e.entity_id).is_some_and(|stat| stat.success_count > 0);
             let pinned = pins.contains(&e.entity_id);
             let score = usage_score(usage.get(&e.entity_id), now);
-            Some((e, tier, used, pinned, score, title))
+            Some((e, tier, precision, used, pinned, score, title))
         })
         .collect();
-    ranked.sort_by(|(a, at, au, ap, ascore, an), (b, bt, bu, bp, bscore, bn)| {
+    ranked.sort_by(|(a, at, aq, au, ap, ascore, an), (b, bt, bq, bu, bp, bscore, bn)| {
         bu.cmp(au)
             .then_with(|| at.cmp(bt))
+            .then_with(|| aq.cmp(bq))
             .then_with(|| bp.cmp(ap))
             .then_with(|| bscore.total_cmp(ascore))
             .then_with(|| an.cmp(bn))
@@ -242,6 +257,14 @@ thread_local! {
 #[cfg(test)]
 #[path = "ranking_corpus.rs"]
 mod corpus;
+
+#[cfg(test)]
+#[path = "ranking_experience_tests.rs"]
+mod experience_tests;
+
+#[cfg(test)]
+#[path = "ranking_experience_baseline.rs"]
+mod experience_baseline;
 
 #[cfg(test)]
 mod tests {

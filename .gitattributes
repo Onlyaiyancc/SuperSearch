@@ -1,0 +1,18 @@
+* text=auto
+.gitattributes text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.ps1 text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.svelte text eol=lf
+*.rs text eol=lf
+*.md text eol=lf
+*.md whitespace=-blank-at-eol
+*.yml text eol=lf
+docs/licenses/** text eol=lf
+docs/licenses/** -whitespace
+*.exe binary
+*.dll binary
+*.png binary
+*.ico binary

@@ -8,7 +8,7 @@
 
 ## Work units
 
-Implementation and local test delivery completed on 2026-10-12. These checkmarks track implementation/local verification, not full public-release acceptance; the remaining native UI, lifecycle, coverage and performance gates are recorded in `outputs/Acceptance-Report.md`.
+Implementation and local test delivery completed on 2026-10-12. These checkmarks track implementation/local verification, not full public-release acceptance; the remaining native UI, lifecycle, coverage and performance gates are recorded in `artifacts/archive/2026-10-19/outputs/Acceptance-Report.md`.
 
 - [x] Build environment: project-local Rust (no global PATH changes), locked dependencies, retained SDK license and SHA256; compiler version and frontend production build verified.
 - [x] Domain (`query.rs`, `model.rs`, `ranking.rs`, `store.rs`): quoted phrases, reserved characters, scope conflicts, directory boundaries, Chinese/pinyin tiers, usage limits and settings tests executed.

@@ -115,12 +115,15 @@ fn synthetic_quality_corpus_reports_top_one_and_three() {
     let mut top3 = 0;
     let mut baseline_top1 = 0;
     let mut baseline_top3 = 0;
+    let mut previous_top1 = 0;
+    let mut previous_top3 = 0;
     for (query, scope, target, historical, pinned) in &cases {
         let usage = if *historical { HashMap::from([(target.clone(), UsageStat { success_count: 1, last_success_at: u64::MAX })]) } else { HashMap::new() };
         let pins = if *pinned { HashSet::from([target.clone()]) } else { HashSet::new() };
         let spec = crate::query::parse(query, scope).unwrap();
         let ranked = rank_entries(catalog.clone(), &spec, &usage, &pins);
         let before = baseline::rank_entries(catalog.clone(), &spec, &usage, &pins);
+        let previous = super::experience_baseline::rank_entries(catalog.clone(), &spec, &usage, &pins);
         // 未指定历史、置顶或归档目录时，同名精确 PDF 的不同合法路径均相关。
         let relevant = |e: &Entry| e.entity_id == *target || (!historical && !pinned && target == r"D:\工作\项目\报告.pdf" && e.title == "报告.pdf");
         let one = if target.is_empty() { ranked.is_empty() } else { ranked.first().is_some_and(|(e, _)| relevant(e)) };
@@ -129,15 +132,31 @@ fn synthetic_quality_corpus_reports_top_one_and_three() {
         top3 += usize::from(three);
         baseline_top1 += usize::from(if target.is_empty() { before.is_empty() } else { before.first().is_some_and(|(e, _)| relevant(e)) });
         baseline_top3 += usize::from(if target.is_empty() { before.is_empty() } else { before.iter().take(3).any(|(e, _)| relevant(e)) });
+        previous_top1 += usize::from(if target.is_empty() { previous.is_empty() } else { previous.first().is_some_and(|(e, _)| relevant(e)) });
+        previous_top3 += usize::from(if target.is_empty() { previous.is_empty() } else { previous.iter().take(3).any(|(e, _)| relevant(e)) });
         if !one { println!("Synthetic top1 miss: query={query:?}, target={target:?}, actual={:?}", ranked.iter().take(3).map(|(e, _)| &e.title).collect::<Vec<_>>()); }
         assert!(three, "Top3 regression: {query}: {target}");
-        if !["yueqitiaoyin", "yqty"].contains(&query.as_str()) { assert_eq!(ranked, before, "Changed ranking policy: {query}"); }
+        if !["yueqitiaoyin", "yqty"].contains(&query.as_str()) {
+            if spec.scope == "apps" {
+                // 本轮有意细化应用同级顺序；候选及公开等级保持原有召回语义。
+                let membership = |items: &[(Entry, u8)]| {
+                    let mut members: Vec<_> = items.iter().map(|(e, tier)| (e.entity_id.clone(), *tier)).collect();
+                    members.sort();
+                    members
+                };
+                assert_eq!(membership(&ranked), membership(&before), "Changed candidate membership: {query}");
+            } else {
+                assert_eq!(ranked, before, "Changed file ranking policy: {query}");
+            }
+        }
         let paths: Vec<_> = ranked.iter().filter(|(e, _)| e.kind == "file").map(|(e, _)| e.locator.replace('/', "\\").to_lowercase()).collect();
         assert_eq!(paths.iter().collect::<HashSet<_>>().len(), paths.len(), "Duplicate path: {query}");
     }
     assert!(cases.len() >= 100);
     println!("Synthetic corpus: queries={}, candidates={}, baselineTop1={}/{}, baselineTop3={}/{}, optimizedTop1={}/{}, optimizedTop3={}/{}", cases.len(), catalog.len(), baseline_top1, cases.len(), baseline_top3, cases.len(), top1, cases.len(), top3, cases.len());
-    assert_eq!((baseline_top1, baseline_top3, top1, top3), (143, 146, 145, 148));
+    println!("Experience quality: previousTop1={previous_top1}/{} previousTop3={previous_top3}/{} afterTop1={top1}/{} afterTop3={top3}/{} expectedEmpty=7", cases.len(), cases.len(), cases.len(), cases.len());
+    assert_eq!((baseline_top1, baseline_top3, top1, top3), (143, 146, 148, 148));
+    assert_eq!((previous_top1, previous_top3), (145, 148));
 }
 
 #[test]

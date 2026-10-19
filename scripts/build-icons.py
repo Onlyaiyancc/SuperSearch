@@ -28,5 +28,7 @@ for index, size in enumerate([16, 24, 32, 48, 64, 128]):
     x = [30, 94, 162, 238, 328, 444][index]
     sheet.paste(sample, (x, 120 - size // 2), sample)
     preview.text((x, 195), str(size) + ' px', fill='#59616c')
-sheet.save(root / 'outputs/App-Icon-Preview.png')
+preview_directory = root / 'test-results/icons'
+preview_directory.mkdir(parents=True, exist_ok=True)
+sheet.save(preview_directory / 'App-Icon-Preview.png')
 print('Generated Silver icon: PNG, multi-resolution ICO, tray RGBA and size preview.')

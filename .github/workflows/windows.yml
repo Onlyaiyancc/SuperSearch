@@ -1,0 +1,117 @@
+name: Windows checks and pre-release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Optional beta tag to publish after all checks, for example v0.1.6-beta.1
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install standard Rust MSVC toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup target add x86_64-pc-windows-msvc --toolchain stable
+      - name: Scan complete Git history
+        run: |
+          $taskZip = Join-Path $env:RUNNER_TEMP 'gitleaks.zip'
+          $taskDirectory = Join-Path $env:RUNNER_TEMP 'gitleaks'
+          Invoke-WebRequest 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip' -OutFile $taskZip
+          if ((Get-FileHash -LiteralPath $taskZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'd29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e') { throw 'Gitleaks archive checksum mismatch' }
+          Expand-Archive -LiteralPath $taskZip -DestinationPath $taskDirectory
+          & (Join-Path $taskDirectory 'gitleaks.exe') git . --redact --no-banner
+      - run: npm ci
+      - run: npm run notices -- --check
+      - run: npm audit
+      - run: npm run verify -- --smoke
+      - run: npm run desktop:build
+      - name: Check release engine in an isolated fixture
+        run: |
+          $taskSmoke = Start-Process -FilePath './src-tauri/target/release/supersearch.exe' -ArgumentList '--smoke-test-bundled' -Wait -PassThru -WindowStyle Hidden
+          if ($taskSmoke.ExitCode -ne 0) { exit $taskSmoke.ExitCode }
+          if ((Get-Content 'test-results/bundled-native-smoke.json' -Raw | ConvertFrom-Json).outcome -ne 'passed') { throw 'Release smoke report failed' }
+      - name: Prepare portable archive, notices and checksums
+        run: |
+          $taskDirectory = Join-Path $env:RUNNER_TEMP 'SuperSearch-portable'
+          New-Item -ItemType Directory -Path $taskDirectory -Force | Out-Null
+          New-Item -ItemType Directory -Path 'test-results/github-release' -Force | Out-Null
+          Copy-Item 'src-tauri/target/release/supersearch.exe' (Join-Path $taskDirectory 'SuperSearch.exe')
+          Copy-Item 'LICENSE','THIRD-PARTY-NOTICES.md','docs/licenses/THIRD-PARTY-LICENSES.txt' $taskDirectory
+          Copy-Item 'src-tauri/resources/everything/License.txt' (Join-Path $taskDirectory 'Everything-License.txt')
+          Compress-Archive -Path (Join-Path $taskDirectory '*') -DestinationPath 'test-results/github-release/SuperSearch-portable-x64.zip'
+          Copy-Item 'src-tauri/target/release/bundle/nsis/*-setup.exe' 'test-results/github-release/'
+          Get-ChildItem 'test-results/github-release' -File | Sort-Object Name | ForEach-Object { "$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)" } | Set-Content -Encoding utf8 'test-results/github-release/SHA256SUMS.txt'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-release
+          path: test-results/github-release/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: verification-evidence
+          path: test-results/*.json
+          if-no-files-found: ignore
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+    needs: checks
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-release
+          path: release-assets
+      - name: Publish the verified commit as a beta
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+-beta\.\d+$') { throw 'Expected vX.Y.Z-beta.N tag' }
+          $taskVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if (-not $env:RELEASE_TAG.StartsWith("v$taskVersion-beta.")) { throw 'Tag and source version differ' }
+          $taskNotes = "docs/releases/$($env:RELEASE_TAG).md"
+          if (-not (Test-Path -LiteralPath $taskNotes)) { throw 'Release notes must exist in the verified source commit' }
+          foreach ($taskLine in Get-Content 'release-assets/SHA256SUMS.txt') {
+            if ($taskLine -notmatch '^([a-f0-9]{64})  ([A-Za-z0-9._-]+)$') { throw 'Invalid checksum entry' }
+            if ((Get-FileHash -LiteralPath (Join-Path 'release-assets' $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Matches[1]) { throw 'Release asset checksum mismatch' }
+          }
+          $taskAssets = @(Get-ChildItem 'release-assets' -File | Select-Object -ExpandProperty FullName)
+          $taskExistingTag = git ls-remote --tags origin "refs/tags/$($env:RELEASE_TAG)"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot verify remote tag state' }
+          if ($taskExistingTag -and ($taskExistingTag -split '\s+')[0] -ne $env:GITHUB_SHA) { throw 'Existing tag points to another object; refusing to publish' }
+          gh release create $env:RELEASE_TAG @taskAssets --target $env:GITHUB_SHA --prerelease --title "SuperSearch $($env:RELEASE_TAG)" --notes-file $taskNotes
+          exit $LASTEXITCODE

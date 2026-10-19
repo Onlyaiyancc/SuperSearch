@@ -7,6 +7,8 @@
   import { localizeMessage, providerMessage } from './localization';
   import { scopeDescription, subtitleParts, highlightSegments, createCompletionCycle } from './search-presentation';
   import { createSearchMetrics } from './search-metrics';
+  import { captureShortcut, parseAliases } from './settings-input';
+  import { watchLoadingProvider } from './provider-refresh';
   import { runUiBenchmark, runUiSoak, type BenchmarkConfig, type SoakWindow } from './ui-benchmark';
   import BrandMark from './BrandMark.svelte';
   import ResultIcon from './ResultIcon.svelte';
@@ -40,17 +42,23 @@
   let includeText = $state('');
   let excludeText = $state('');
   let settingsTab = $state<'general' | 'search' | 'advanced'>('general');
+  let shortcutError = $state('');
+  let shortcutRecording = $state(false);
+  let shortcutInput = $state<HTMLInputElement>();
+  let aliasesInput = $state<HTMLInputElement>();
   let menu = $state<string | null>(null);
   let menuLocation = $state({ left: 8, top: 8 });
   let menuPlaced = $state(false);
   let modal = $state<'add' | 'aliases' | 'clear' | 'diagnostics' | null>(null);
   let dialogName = $state('');
   let dialogAliases = $state('');
+  let originalAliases = $state<string[]>([]);
   let dialogAppId = '';
   let diagnostics = $state('');
   let lastFocused: HTMLElement | null = null;
   let dialogElement = $state<HTMLDialogElement>();
   let hidden = $state(false);
+  let documentVisible = $state(true);
   const completionCycle = createCompletionCycle();
   const metrics = createSearchMetrics(preview ? 'preview' : 'desktop');
   let benchmarkRunning = $state(false);
@@ -61,6 +69,7 @@
   const activeItem = $derived(snapshot.items.find(item => item.entityId === selected));
   const actionable = $derived(!pending && !composing && !busy && !!activeItem?.available);
   const fileProvider = $derived(providers.find(provider => provider.id === 'everything'));
+  const watchIndexLoading = $derived(!preview && !benchmarkRunning && !hidden && documentVisible && view === 'settings' && settingsTab === 'advanced' && (fileProvider?.status === 'indexLoading' || fileProvider?.status === 'loading'));
   const unavailableProvider = $derived(providers.find(provider => provider.status !== 'ready'));
   const directoryQuery = $derived(hasDirectoryQuery(query));
   const directoryScope = $derived(scopeDescription(snapshot.requestId === requestId ? snapshot.directory : null));
@@ -69,8 +78,15 @@
   const webFallback = $derived(!!query.trim() && !directoryQuery && !pending && snapshot.complete && snapshot.requestId === requestId && !snapshot.items.length && !composing && !busy);
   const theme = $derived(settings?.theme ?? 'light');
   const footerStatus = $derived(error || notice || (snapshot.truncated ? '结果数量已达上限，请缩小搜索范围。' : !preview && unavailableProvider ? providerMessage(unavailableProvider) : ''));
+  const aliasInput = $derived(parseAliases(dialogAliases, originalAliases));
+  const aliasError = $derived(({ count: '最多设置 16 个不同别名，请减少后保存。', length: '每个别名最多 128 个字符，请缩短后保存。', control: '别名不能包含换行、制表符等控制字符。', '': '' })[aliasInput.error]);
 
   const message = localizeMessage;
+
+  $effect(() => {
+    // 只在索引页可见且加载中检查；离开、隐藏、就绪或卸载都会取消计时和迟到回包。
+    if (watchIndexLoading) return watchLoadingProvider(refreshProviderStatus);
+  });
 
   $effect(() => {
     const epoch = uiEpoch;
@@ -99,14 +115,19 @@
     metrics.rendered(incoming.requestId, performance.now(), { complete: incoming.complete, count: incoming.items.length + (incoming.folderCompletions?.length ?? 0) });
   }
 
-  async function refreshProviderStatus() {
+  async function refreshProviderStatus(isCurrent = () => true) {
     const epoch = uiEpoch;
     const probe = ++providerProbe;
     try {
       const status = await call<Provider[]>('get_provider_status');
-      if (epoch !== uiEpoch || probe !== providerProbe) return;
+      if (epoch !== uiEpoch || probe !== providerProbe || !isCurrent()) return;
       providers = mergeProviders(providers, status);
-    } catch (value) { if (epoch === uiEpoch && probe === providerProbe) error = message(value); }
+      return status;
+    } catch (value) {
+      if (epoch !== uiEpoch || probe !== providerProbe || !isCurrent()) return;
+      error = message(value);
+      return [];
+    }
   }
 
   // 输入变化时先取消可执行状态；防抖期间的 Enter 不会打开旧结果。
@@ -352,6 +373,7 @@
     const epoch = uiEpoch;
     menu = null;
     error = '';
+    shortcutError = '';
     view = 'settings';
     try {
       const loaded = await call<Settings>('get_settings');
@@ -372,8 +394,26 @@
     void tick().then(() => input?.focus());
   }
 
+  function recordShortcut(event: KeyboardEvent) {
+    // 即使是 Tab、Escape 或无效键，也不能触发窗口级搜索与设置操作。
+    event.stopPropagation();
+    const result = captureShortcut(event);
+    if (result.kind === 'navigate') return;
+    event.preventDefault();
+    if (result.kind === 'cancel') { shortcutError = ''; shortcutInput?.blur(); return; }
+    if (result.kind === 'capture' && draft) { draft.shortcut = result.shortcut; shortcutError = ''; }
+    else if (result.kind === 'error') shortcutError = result.error === 'modifier' ? '请同时按住 Ctrl、Alt、Shift 或 Win，再按一个键。' : '此键暂不支持，请使用字母、数字、空格、方向键或 F1–F24。';
+  }
+
+  async function focusShortcutError() {
+    settingsTab = 'general';
+    await tick();
+    shortcutInput?.focus();
+  }
+
   async function saveSettings() {
     if (!draft || !settings || busy) return;
+    if (shortcutError) { await focusShortcutError(); return; }
     busy = true;
     error = '';
     const epoch = uiEpoch;
@@ -391,7 +431,12 @@
       draft = structuredClone($state.snapshot(settings));
       notice = preview ? '预览设置已更新，仅当前会话有效' : '设置已保存';
       closeSettings();
-    } catch (value) { if (epoch === uiEpoch) error = message(value); }
+    } catch (value) {
+      if (epoch !== uiEpoch) return;
+      const raw = value instanceof Error ? value.message : String(value);
+      if (/shortcut/i.test(raw)) { shortcutError = message(value); await focusShortcutError(); }
+      else error = message(value);
+    }
     finally { if (epoch === uiEpoch) busy = false; }
   }
 
@@ -419,7 +464,8 @@
     menu = null;
     error = '';
     dialogName = item?.title ?? '';
-    dialogAliases = '';
+    originalAliases = value === 'aliases' ? [...(item?.aliases ?? [])] : [];
+    dialogAliases = originalAliases.join(', ');
     dialogAppId = item?.entityId ?? '';
     if (value === 'diagnostics') {
       diagnostics = '正在收集诊断信息…';
@@ -449,10 +495,11 @@
 
   async function submitDialog() {
     if (busy) return;
+    if ((modal === 'add' || modal === 'aliases') && aliasError) { aliasesInput?.focus(); return; }
     busy = true;
     const epoch = uiEpoch;
     try {
-      const aliases = dialogAliases.split(',').map(alias => alias.trim()).filter(Boolean);
+      const aliases = aliasInput.aliases;
       if (modal === 'add') await call('add_app', { displayName: dialogName.trim(), aliases });
       else if (modal === 'aliases') await call('set_app_aliases', { appId: dialogAppId, aliases });
       else if (modal === 'clear') await call('clear_usage_history');
@@ -474,6 +521,7 @@
   }
 
   onMount(() => {
+    documentVisible = !document.hidden;
     let disposed = false;
     const cleanup: (() => void)[] = [];
     let soakCycle: { hiddenSeen: boolean; resolve: () => void; reject: (error: Error) => void } | null = null;
@@ -536,6 +584,7 @@
 </script>
 
 <svelte:window onkeydown={handleKey} onclick={(event) => { if (menu && !(event.target as Element)?.closest('.action-menu, .result-menu-button, .footer-actions')) menu = null; }} />
+<svelte:document onvisibilitychange={() => { documentVisible = !document.hidden; }} />
 
 <main class="app-shell" class:preview-mode={preview} class:expanded class:settings-view={view === 'settings' || !!modal} data-theme={theme} data-tauri-drag-region inert={benchmarkRunning}>
   {#if hidden}
@@ -613,8 +662,14 @@
         {#if !draft}<div class="empty-state"><RefreshCw size={24} /><p>{error ? '无法加载设置。' : '正在加载设置…'}</p></div>
         {:else if settingsTab === 'general'}
           <h2>通用</h2>
-          <div class="setting-row"><div><label for="shortcut">启动快捷键</label><p>按下快捷键，快速呼出 SuperSearch。</p></div><div class="shortcut-field"><input id="shortcut" bind:value={draft.shortcut} placeholder="Alt+Space" aria-describedby="shortcut-help" /></div></div>
-          <span id="shortcut-help" class="sr-only">使用 Alt、Ctrl、Shift 或 Super 等修饰键名称，以加号连接。</span>
+          <div class="shortcut-setting">
+            <div class="setting-row"><div><label for="shortcut">启动快捷键</label><p>聚焦右侧输入框后，直接按组合键。</p></div><div class="shortcut-field" class:invalid-field={!!shortcutError}>
+              <input id="shortcut" bind:this={shortcutInput} value={draft.shortcut} readonly autocomplete="off" spellcheck="false" aria-describedby={`shortcut-help shortcut-status${shortcutError ? ' shortcut-error' : ''}`} aria-invalid={!!shortcutError} onkeydown={recordShortcut} onkeyup={(event) => event.stopPropagation()} onfocus={() => shortcutRecording = true} onblur={() => shortcutRecording = false} />
+            </div></div>
+            <p id="shortcut-help" class="field-help">Ctrl / Alt / Shift / Win + 按键；Tab 切换焦点，Esc 结束录入。</p>
+            <p id="shortcut-status" class="field-help" role="status">{shortcutRecording ? '正在录入；' : ''}{preview ? '预览不检测系统占用；桌面版保存时验证。' : providers.some(provider => provider.id === 'shortcut' && provider.status === 'ready') ? `当前 ${settings?.shortcut ?? 'Alt+Space'} 仍会呼出或隐藏窗口；保存时验证新快捷键。` : '新快捷键保存时由系统验证；如已占用，请更换组合键。'}</p>
+            {#if shortcutError}<p id="shortcut-error" class="field-error" role="alert">{shortcutError}</p>{/if}
+          </div>
           <div class="setting-row"><div><label for="autostart">登录时启动</label><p>开机后自动运行 SuperSearch。</p></div><input id="autostart" type="checkbox" role="switch" class="switch" bind:checked={draft.autostart} /></div>
           <div class="setting-row"><div><label for="history">记录使用历史</label><p>根据本地记录，让常用项目更靠前。</p></div><input id="history" type="checkbox" role="switch" class="switch" bind:checked={draft.recordHistory} /></div>
           <fieldset class="appearance-field"><legend>外观</legend><p>选择搜索窗口的主题。</p><div class="theme-options">
@@ -650,7 +705,8 @@
       {#if modal === 'add' || modal === 'aliases'}
         <p class="dialog-description">{modal === 'add' ? '填写信息后，选择本地应用程序或快捷方式。' : `为 ${dialogName} 设置完整的别名列表，保存后替换现有别名。`}</p>
         {#if modal === 'add'}<label class="field-label" for="app-name">显示名称</label><input id="app-name" bind:value={dialogName} placeholder="应用名称" />{/if}
-        <label class="field-label spaced" for="aliases">别名</label><input id="aliases" bind:value={dialogAliases} placeholder="code, editor, vscode" /><p class="field-help">多个别名以逗号分隔，便于快速搜索应用。</p>
+        <label class="field-label spaced" for="aliases">别名</label><input id="aliases" bind:this={aliasesInput} bind:value={dialogAliases} placeholder="code, editor, vscode" aria-describedby={`aliases-help${aliasError ? ' aliases-error' : ''}`} aria-invalid={!!aliasError} /><p id="aliases-help" class="field-help">用中文或英文逗号分隔；最多 16 个，每个 128 字符，重复项自动合并。</p>
+        {#if aliasError}<p id="aliases-error" class="field-error" role="alert">{aliasError}</p>{/if}
       {:else if modal === 'clear'}<p class="dialog-description">将清除最近打开记录和使用次数，保留已固定快捷方式与别名。</p>
       {:else}<p class="dialog-description">分享前请检查报告，其中可能包含本地路径；程序不会主动记录搜索词。</p><pre class="diagnostic-preview">{diagnostics}</pre>{/if}
       {#if error}<div class="message error-message" role="alert"><AlertCircle size={15} /><span>{error}</span></div>{/if}

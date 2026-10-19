@@ -1,6 +1,6 @@
 # Paper launcher — approved option 1
 
-The user selected Concept-1 and requested the missing Files scope. Implement the white floating launcher with forest green selection, charcoal typography and a visible muted frame. Keep All, Apps, Files, Folders in that order. The selected visual is outputs/Design-Concepts/Concept-1.png; a revised image only adds Files.
+The user selected Concept-1 and requested the missing Files scope. Implement the white floating launcher with forest green selection, charcoal typography and a visible muted frame. Keep All, Apps, Files, Folders in that order. The selected visual is artifacts/archive/2026-10-19/outputs/Design-Concepts/Concept-1.png; a revised image only adds Files.
 
 Keep existing native search, IME, ranking, completions, context actions, pagination and diagnostics. Keep edge dragging with move cursor and no handle. Keep initial work-area centering and anchored expansion.
 
