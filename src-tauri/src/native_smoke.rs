@@ -259,6 +259,23 @@ pub fn run_bundled() -> Result<(), String> {
     result
 }
 
+fn observe_fast_index(probe: &mut Value, diagnostic: Value, elapsed_ms: u128) {
+    // 记录首次观测时间而非精确事件时间；只保留有界状态序列和最后快照。
+    if probe["engineObservedMs"].is_null() && diagnostic["indexing"] == "ntfs-usn" {
+        probe["engineObservedMs"] = json!(elapsed_ms);
+    }
+    if probe["providerReadyObservedMs"].is_null() && diagnostic["status"] == "ready" {
+        probe["providerReadyObservedMs"] = json!(elapsed_ms);
+    }
+    if probe["lastEngine"]["status"] != diagnostic["status"] {
+        if !probe["stateChanges"].is_array() { probe["stateChanges"] = json!([]); }
+        let changes = probe["stateChanges"].as_array_mut().unwrap();
+        if changes.len() < 32 { changes.push(json!({"elapsedMs":elapsed_ms,"status":diagnostic["status"]})); }
+    }
+    probe["lastObservedMs"] = json!(elapsed_ms);
+    probe["lastEngine"] = diagnostic;
+}
+
 pub fn run_fast() -> Result<(), String> {
     if !crate::engine::service_running() { return Err("The dedicated SuperSearch indexing service is not running. Install the machine setup first.".into()); }
     let started = Instant::now();
@@ -275,32 +292,47 @@ pub fn run_fast() -> Result<(), String> {
     let client = EverythingClient::managed(crate::engine::EngineOptions::new(root.join("helper"), vec![]));
     let settings = Settings { include_directories: vec![fixtures.to_string_lossy().into_owned()], hide_hidden: false, hide_system: false, ..Settings::default() };
     let expression = query::compile_everything(&query::parse(&format!("file: {token}"), "all")?, &settings);
-    let mut report = json!({"outcome":"failed", "mode":"ntfs-usn", "nativeActions":"not executed", "checks":{}});
+    let mut report = json!({"outcome":"failed", "mode":"ntfs-usn", "nativeActions":"not executed", "initialIndex":{"attempts":0,"queryErrors":0,"deadlineMs":120000,"timingScope":"Observed from diagnostic start; provider ready and fixture visibility are separate milestones."}, "checks":{}});
     let result = (|| {
-        let wait_for = |expected: Option<&Path>, timeout: Duration| -> Result<u128, String> {
+        let wait_for = |expected: Option<&Path>, timeout: Duration, mut trace: Option<&mut Value>| -> Result<u128, String> {
             let begin = Instant::now();
             loop {
-                if let Ok(page) = client.query(expression.clone(), 0, Instant::now() + Duration::from_millis(250)) {
+                let response = client.query(expression.clone(), 0, Instant::now() + Duration::from_millis(250));
+                if let Some(probe) = trace.as_deref_mut() {
+                    probe["attempts"] = json!(probe["attempts"].as_u64().unwrap_or(0) + 1);
+                    observe_fast_index(probe, client.diagnostics(), started.elapsed().as_millis());
+                    match &response {
+                        Ok(page) => probe["lastQuery"] = json!({"status":page.status.status,"total":page.total,"rows":page.entries.len()}),
+                        Err(error) => {
+                            probe["queryErrors"] = json!(probe["queryErrors"].as_u64().unwrap_or(0) + 1);
+                            probe["lastQueryError"] = json!(error);
+                        }
+                    }
+                }
+                if let Ok(page) = response {
                     if page.status.status == "ready" && match expected {
                         Some(path) => page.total == 1 && page.entries.len() == 1 && fixture_path_matches(&page.entries[0].locator, path),
                         None => page.total == 0 && page.entries.is_empty(),
-                    } { return Ok(begin.elapsed().as_millis()); }
+                    } {
+                        if let Some(probe) = trace { probe["fixtureObservedMs"] = json!(started.elapsed().as_millis()); }
+                        return Ok(begin.elapsed().as_millis());
+                    }
                 }
                 if begin.elapsed() >= timeout { return Err("NTFS/USN diagnostic did not observe the expected file state within its deadline.".into()); }
                 std::thread::sleep(Duration::from_millis(50));
             }
         };
-        let load_ms = wait_for(Some(&original), Duration::from_secs(120))?;
+        let load_ms = wait_for(Some(&original), Duration::from_secs(120), Some(&mut report["initialIndex"]))?;
         report["engine"] = client.diagnostics();
         if report["engine"]["indexing"] != "ntfs-usn" { return Err("The diagnostic did not use NTFS/USN fast indexing.".into()); }
         report["checks"]["initialFixture"] = json!({"outcome":"passed","indexReadyMs":load_ms});
         std::fs::remove_file(&original).map_err(|e| e.to_string())?;
-        wait_for(None, Duration::from_secs(10))?;
+        wait_for(None, Duration::from_secs(10), None)?;
         // 先确认消失，再创建同名文件，避免旧索引命中伪装为实时更新。
         std::fs::write(&original, "Fresh NTFS fixture after index ready").map_err(|e| e.to_string())?;
-        let create_ms = wait_for(Some(&original), Duration::from_secs(10))?;
+        let create_ms = wait_for(Some(&original), Duration::from_secs(10), None)?;
         std::fs::rename(&original, &renamed).map_err(|e| e.to_string())?;
-        let rename_ms = wait_for(Some(&renamed), Duration::from_secs(10))?;
+        let rename_ms = wait_for(Some(&renamed), Duration::from_secs(10), None)?;
         let mut samples = Vec::new();
         for _ in 0..20 {
             let begin = Instant::now();
@@ -331,7 +363,7 @@ pub fn run_fast() -> Result<(), String> {
             if page.total != 1 || !fixture_path_matches(&page.entries[0].locator, &renamed) { return Err("Joined folder input failed in NTFS mode.".into()); }
         }
         std::fs::remove_file(&renamed).map_err(|e| e.to_string())?;
-        let delete_ms = wait_for(None, Duration::from_secs(10))?;
+        let delete_ms = wait_for(None, Duration::from_secs(10), None)?;
         report["checks"]["liveUpdates"] = json!({"outcome":"passed","createMs":create_ms,"renameMs":rename_ms,"deleteMs":delete_ms,"pollIntervalMs":50});
         report["checks"]["directoryFilters"] = json!({"outcome":"passed"});
         report["checks"]["warmQuery"] = json!({"outcome":"passed","samples":20,"medianUs":samples[10],"p95Us":samples[18],"maximumUs":samples[19],"scope":"Backend IPC query for one unique fixture, not end-to-end UI latency."});
@@ -352,6 +384,26 @@ pub fn run_fast() -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::model::{Entry, ProviderStatus};
+
+    #[test]
+    fn fast_index_probe_preserves_first_milestones_and_last_failure_state() {
+        let mut probe = json!({});
+        observe_fast_index(&mut probe, json!({"indexing":"starting","status":"indexLoading"}), 5);
+        observe_fast_index(&mut probe, json!({"indexing":"ntfs-usn","status":"indexLoading","startupMs":3}), 10);
+        observe_fast_index(&mut probe, json!({"indexing":"ntfs-usn","status":"ready"}), 90);
+        observe_fast_index(&mut probe, json!({"indexing":"ntfs-usn","status":"unavailable"}), 100);
+        observe_fast_index(&mut probe, json!({"indexing":"ntfs-usn","status":"ready"}), 120);
+        assert_eq!(probe["engineObservedMs"], 10);
+        assert_eq!(probe["providerReadyObservedMs"], 90);
+        assert_eq!(probe["lastObservedMs"], 120);
+        assert_eq!(probe["lastEngine"]["status"], "ready");
+        assert_eq!(probe["stateChanges"].as_array().unwrap().len(), 4);
+        for i in 0..100 {
+            observe_fast_index(&mut probe, json!({"status":format!("state{i}")}), 121+i);
+        }
+        assert_eq!(probe["stateChanges"].as_array().unwrap().len(), 32);
+        assert_eq!(probe["lastEngine"]["status"], "state99");
+    }
 
     fn page(rows: &[(&str, &str, &str)]) -> FilePage {
         FilePage {

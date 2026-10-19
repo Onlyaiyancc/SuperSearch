@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Optional beta tag to publish after all checks, for example v0.1.6-beta.1
+        description: Optional tag after checks; beta publishes, stable creates a draft (v0.1.7)
         required: false
         default: ''
       native_acceptance:
@@ -17,11 +17,11 @@ on:
       candidate_run:
         description: Successful main Windows build run to accept
         type: string
-        default: '39252742107'
+        default: ''
       candidate_sha:
         description: Exact source commit of the candidate build
         type: string
-        default: 'd6ea013fbec8c70896584418c8061e882c881781'
+        default: ''
 
 permissions:
   contents: read
@@ -150,19 +150,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-release
           path: release-assets
-      - name: Publish the verified commit as a beta
+      - name: Publish beta or prepare a stable draft from the verified commit
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+-beta\.\d+$') { throw 'Expected vX.Y.Z-beta.N tag' }
           $taskVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if (-not $env:RELEASE_TAG.StartsWith("v$taskVersion-beta.")) { throw 'Tag and source version differ' }
+          $taskPolicy = node scripts/release-policy.mjs tag $taskVersion $env:RELEASE_TAG | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid release tag.' }
           $taskNotes = "docs/releases/$($env:RELEASE_TAG).md"
           if (-not (Test-Path -LiteralPath $taskNotes)) { throw 'Release notes must exist in the verified source commit' }
           foreach ($taskLine in Get-Content 'release-assets/SHA256SUMS.txt') {
@@ -173,5 +176,6 @@ jobs:
           $taskExistingTag = git ls-remote --tags origin "refs/tags/$($env:RELEASE_TAG)"
           if ($LASTEXITCODE -ne 0) { throw 'Cannot verify remote tag state' }
           if ($taskExistingTag -and ($taskExistingTag -split '\s+')[0] -ne $env:GITHUB_SHA) { throw 'Existing tag points to another object; refusing to publish' }
-          gh release create $env:RELEASE_TAG @taskAssets --target $env:GITHUB_SHA --prerelease --title "SuperSearch $($env:RELEASE_TAG)" --notes-file $taskNotes
+          $taskFlags = if ($taskPolicy.draft) { @('--draft') } else { @('--prerelease') }
+          gh release create $env:RELEASE_TAG @taskAssets --target $env:GITHUB_SHA @taskFlags --title "SuperSearch $($env:RELEASE_TAG)" --notes-file $taskNotes
           exit $LASTEXITCODE

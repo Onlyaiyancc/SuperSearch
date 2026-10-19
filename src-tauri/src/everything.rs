@@ -351,9 +351,13 @@ fn worker(shared: Arc<Shared>, options: Option<EngineOptions>) {
 
 fn launch_engine(shared: &Shared, options: Option<EngineOptions>) -> (Option<ManagedEngine>, Option<String>) {
     let Some(options) = options else { return (None, None); };
+    let started = Instant::now();
     match ManagedEngine::start(options) {
         Ok(engine) => {
-            if let Ok(mut mailbox) = shared.mailbox.lock() { mailbox.diagnostics = engine.diagnostics(); }
+            if let Ok(mut mailbox) = shared.mailbox.lock() {
+                mailbox.diagnostics = engine.diagnostics();
+                mailbox.diagnostics["startupMs"] = json!(started.elapsed().as_millis());
+            }
             (Some(engine), None)
         }
         Err(error) => {

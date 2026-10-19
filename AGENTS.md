@@ -1,6 +1,6 @@
 # SuperSearch Agent Guide
 
-Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.6, local test build.
+Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.7, stable release candidate; not publicly released.
 
 ## Command sequences
 
@@ -85,7 +85,7 @@ Keep only conventional project source/configuration, documentation, dependencies
 ## Build artifacts
 
 Production build (`npm run desktop:build`) writes:
-- `src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe` - NSIS installer (per-machine, installs service)
+- `src-tauri/target/release/bundle/nsis/SuperSearch_0.1.7_x64-setup.exe` - NSIS installer (per-machine, installs service)
 - `src-tauri/target/release/supersearch.exe` - Standalone portable executable
 - This optimization publishes to `artifacts/releases/Priority-Optimization-2026-10-15/`, with matching manifest/checksums and `artifacts/releases/Latest-Release.json`. Publication refuses stale builds/checks or mismatched native/resource/raw-sample digests. `artifacts/releases/` also contains historical acceptance reports, screenshots and licenses.
 

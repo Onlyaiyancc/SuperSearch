@@ -1,6 +1,6 @@
 [package]
 name = "supersearch"
-version = "0.1.6"
+version = "0.1.7"
 description = "A focused offline Windows search launcher"
 edition = "2021"
 license = "MIT"
