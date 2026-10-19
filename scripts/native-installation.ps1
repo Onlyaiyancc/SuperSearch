@@ -56,6 +56,14 @@ function Test-FastIndex([string]$Name) {
     if ($taskSmoke.outcome -ne 'passed' -or $taskSmoke.engine.indexing -ne 'ntfs-usn') { throw 'Installed NTFS/USN diagnostic failed.' }
     Copy-Item -LiteralPath 'test-results/fast-native-smoke.json' -Destination (Join-Path $taskOutput "$Name-fast.json")
 }
+function Assert-InstalledPayload {
+    $taskActual=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
+    $taskReport.installedExecutableSha256=$taskActual
+    if ($taskActual -ne $taskExpectedExe) { throw 'Installed executable differs from the verified installer payload.' }
+    foreach($taskPair in @(@('licenses/LICENSE.txt','LICENSE'),@('licenses/THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md'),@('licenses/THIRD-PARTY-LICENSES.txt','THIRD-PARTY-LICENSES.txt'),@('engine/License.txt','Everything-License.txt'))) {
+        if ((Get-FileHash -LiteralPath (Join-Path $taskInstall $taskPair[0]) -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $taskOutput ('portable/'+$taskPair[1])) -Algorithm SHA256).Hash) { throw 'Installed license resource differs from candidate notices.' }
+    }
+}
 function Uninstall-Candidate {
     $taskUninstaller = Join-Path $taskInstall 'uninstall.exe'
     if (-not (Test-Path -LiteralPath $taskUninstaller)) { throw 'Uninstaller missing.' }
@@ -80,21 +88,29 @@ try {
     $taskBaseline = Join-Path $taskOutput 'baseline/SuperSearch_0.1.6_x64-setup.exe'
     if ((Get-FileHash -LiteralPath $taskBaseline -Algorithm SHA256).Hash.ToLowerInvariant() -ne '7f6f65e0c05423c27808cfbc7d57ceb86931fac32031fe365ea4a24a0e6bb965') { throw 'Baseline hash mismatch.' }
     Expand-Archive -LiteralPath (Join-Path $taskCandidate 'SuperSearch-portable-x64.zip') -DestinationPath (Join-Path $taskOutput 'portable')
-    $taskExpectedExe = (Get-FileHash -LiteralPath (Join-Path $taskOutput 'portable/SuperSearch.exe') -Algorithm SHA256).Hash
     $taskSetup = Join-Path $taskCandidate 'SuperSearch_0.1.6_x64-setup.exe'
+    # NSIS 打包可修改 bundle 类型标记；应和安装包自身的载荷比对。
+    $taskSevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+    & $taskSevenZip x -y ('-o'+(Join-Path $taskOutput 'installer-payload')) $taskSetup | Out-Null
+    if($LASTEXITCODE -ne 0){throw 'Cannot inspect candidate installer payload.'}
+    $taskPayload=@(Get-ChildItem -LiteralPath (Join-Path $taskOutput 'installer-payload') -Recurse -File -Filter supersearch.exe)
+    if($taskPayload.Count -ne 1){throw 'Expected one executable in candidate installer.'}
+    $taskExpectedExe=(Get-FileHash -LiteralPath $taskPayload[0].FullName -Algorithm SHA256).Hash
     $taskReport.installerSha256=(Get-FileHash -LiteralPath $taskSetup -Algorithm SHA256).Hash
     $taskReport.executableSha256=$taskExpectedExe
+    $taskReport.portableExecutableSha256=(Get-FileHash -LiteralPath (Join-Path $taskOutput 'portable/SuperSearch.exe') -Algorithm SHA256).Hash
     $taskReport.phase='baseline-install'
     Invoke-Checked $taskBaseline @('/S')
     Assert-DedicatedService
     Test-InstalledApp
+    $taskReport.baselineInstalledExecutableSha256=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
     & node scripts/native-installation-store.mjs seed
     if ($LASTEXITCODE -ne 0) { throw 'Cannot seed synthetic upgrade state.' }
     $taskReport.checks.baselineInstall='passed'
     $taskReport.phase='upgrade'
     Invoke-Checked $taskSetup @('/S')
     Assert-DedicatedService
-    if ((Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash -ne $taskExpectedExe) { throw 'Upgrade did not replace the executable with the exact candidate.' }
+    Assert-InstalledPayload
     Test-InstalledApp
     & node scripts/native-installation-store.mjs check
     if ($LASTEXITCODE -ne 0) { throw 'Upgrade did not preserve synthetic state.' }
@@ -118,6 +134,7 @@ try {
     Move-Item -LiteralPath $taskData -Destination (Join-Path $taskOutput 'retained-synthetic-store')
     Invoke-Checked $taskSetup @('/S')
     Assert-DedicatedService
+    Assert-InstalledPayload
     Test-InstalledApp
     Test-FastIndex 'fresh'
     $taskLink = Join-Path $env:ProgramData 'Microsoft/Windows/Start Menu/Programs/SuperSearch.lnk'
