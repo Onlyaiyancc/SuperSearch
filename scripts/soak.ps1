@@ -51,9 +51,13 @@ try {
             $taskRole = if ($taskPid -eq $taskServiceId) { 'service' } elseif ($taskPid -eq $taskProcess.Id) { 'app' } elseif ($taskRow.Name -eq 'msedgewebview2.exe') { 'webview' } else { 'engine' }
             try {
                 $taskChild = Get-Process -Id $taskPid -ErrorAction Stop
-                $taskIdentity = "$taskPid|$($taskChild.StartTime.ToUniversalTime().Ticks)"
+                $taskStartTime = $taskChild.StartTime
+                $taskCpuTime = $taskChild.TotalProcessorTime
+                # 进程可能在枚举后退出，或其时间属性不可读取；跳过该次不完整采样。
+                if ($null -eq $taskStartTime -or $null -eq $taskCpuTime) { continue }
+                $taskIdentity = "$taskPid|$($taskStartTime.ToUniversalTime().Ticks)"
                 [void]$taskLiveIdentities.Add($taskIdentity)
-                $taskCpu = $taskChild.TotalProcessorTime.TotalMilliseconds
+                $taskCpu = $taskCpuTime.TotalMilliseconds
                 if ($taskPreviousCpu.ContainsKey($taskIdentity) -and $null -ne $taskPreviousUnixMs -and $taskNowUnixMs -gt $taskPreviousUnixMs) {
                     $taskRoles[$taskRole].cpuPercent += 100.0 * [Math]::Max(0, $taskCpu - $taskPreviousCpu[$taskIdentity]) / ($taskNowUnixMs - $taskPreviousUnixMs) / [Environment]::ProcessorCount
                 }

@@ -10,6 +10,18 @@ on:
         description: Optional beta tag to publish after all checks, for example v0.1.6-beta.1
         required: false
         default: ''
+      native_acceptance:
+        description: Run installer lifecycle acceptance on a disposable hosted runner instead of building
+        type: boolean
+        default: false
+      candidate_run:
+        description: Successful main Windows build run to accept
+        type: string
+        default: '39252742107'
+      candidate_sha:
+        description: Exact source commit of the candidate build
+        type: string
+        default: 'd6ea013fbec8c70896584418c8061e882c881781'
 
 permissions:
   contents: read
@@ -20,6 +32,7 @@ concurrency:
 
 jobs:
   checks:
+    if: github.event_name != 'workflow_dispatch' || !inputs.native_acceptance
     runs-on: windows-latest
     timeout-minutes: 45
     defaults:
@@ -93,6 +106,39 @@ jobs:
           name: verification-evidence
           path: test-results/*.json
           if-no-files-found: ignore
+
+  native-installation:
+    if: github.event_name == 'workflow_dispatch' && inputs.native_acceptance
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Accept the exact previously built candidate
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:REQUESTED_TAG) { throw 'Acceptance-only dispatch cannot publish a tag.' }
+          ./scripts/native-installation.ps1 -CandidateRun $env:CANDIDATE_RUN -CandidateSha $env:CANDIDATE_SHA
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: native-installation-evidence
+          path: |
+            test-results/native-installation/report.json
+            test-results/native-installation/*-fast.json
+          if-no-files-found: error
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.tag != ''

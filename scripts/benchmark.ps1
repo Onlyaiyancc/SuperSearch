@@ -35,8 +35,12 @@ try {
             if (-not $taskIds.Contains([uint32]$taskRow.ProcessId)) { continue }
             try {
                 $taskChild = Get-Process -Id $taskRow.ProcessId -ErrorAction Stop
-                $taskIdentity = "$($taskChild.Id)|$($taskChild.StartTime.ToUniversalTime().Ticks)"
-                $taskCpu = $taskChild.TotalProcessorTime.TotalMilliseconds
+                $taskStartTime = $taskChild.StartTime
+                $taskCpuTime = $taskChild.TotalProcessorTime
+                # 短寿命子进程可能已退出，避免空时间属性中断整次诊断。
+                if ($null -eq $taskStartTime -or $null -eq $taskCpuTime) { continue }
+                $taskIdentity = "$($taskChild.Id)|$($taskStartTime.ToUniversalTime().Ticks)"
+                $taskCpu = $taskCpuTime.TotalMilliseconds
                 if ($taskPreviousCpu.ContainsKey($taskIdentity)) { $taskCpuDelta += [Math]::Max(0, $taskCpu - $taskPreviousCpu[$taskIdentity]) }
                 $taskPreviousCpu[$taskIdentity] = $taskCpu
                 $taskPrivate += $taskChild.PrivateMemorySize64
