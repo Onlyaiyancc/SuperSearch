@@ -44,3 +44,13 @@ Rust 审计需先运行 `npm run desktop:audit:install`，然后运行 `npm run 
 普通运行默认不发送遥测；成功打开项目的路径和使用次数可保存在本机，可在设置中关闭或清除。主动使用网页搜索时，查询会交给默认浏览器和必应。导出诊断前请检查并移除个人路径与设备信息。
 
 真实输入法、多屏、安装/升级/卸载、睡眠唤醒需要单独的原生验收。短时基准和合成查询不能证明长期资源行为。
+
+## 依赖更新
+
+Dependabot 每周检查依赖。npm/Cargo 只自动合并**补丁更新到同一个 PR**，不会自动合并 PR；0.x 的次版本可能不兼容，需要单独评估。GitHub Actions 将次版本和补丁更新分组，所有 Action 仍固定到完整提交 SHA。版本更新 PR 的并发上限分别为 3、3、2；安全更新保持启用，不受这些版本更新上限影响。
+
+在依赖分支上运行 `npm ci`，然后运行 `npm run notices`，检查并提交锁文件和 `docs/licenses/THIRD-PARTY-LICENSES.txt` 的变化。CI 的 `Dependency notices are stale` 表示依赖与清单不一致；不要删除许可证检查，也不要手工只替换版本号。出现 `Missing upstream license texts` 时，核对对应版本的上游许可证后补充 `docs/licenses/upstream/sources.json` 及原文。
+
+提交前运行 `npm audit`、`npm run notices -- --check` 和 `npm run verify -- --smoke --audit-rust`。Tauri/原生依赖更新还需构建发行程序并运行隔离烟测。升级 Action 时，CI 会上传并重新下载构建产物，核对文件名和 SHA-256；该检查不会发布新版本。
+
+不要用 `--force` 或 `--legacy-peer-deps` 掩盖前端版本冲突。Vite 与 Svelte Vite 插件应配套评估，TypeScript 的版本必须满足 svelte-check 的 peer 范围。Beta 的人工验收见 [原生验收清单](testing/beta-native-acceptance.md)。

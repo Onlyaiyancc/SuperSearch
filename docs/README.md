@@ -2,6 +2,7 @@
 
 - [开发与构建](development.md)
 - [发布指南](releasing.md)
+- [Beta 原生验收清单](testing/beta-native-acceptance.md)
 - [版本说明](releases/)
 - [依赖许可全文](licenses/THIRD-PARTY-LICENSES.txt)
 - [技术设计](technical-design.md)
