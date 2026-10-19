@@ -21,6 +21,7 @@ $taskOutput = Join-Path $taskRoot 'test-results/native-installation'
 New-Item -ItemType Directory -Force -Path $taskOutput | Out-Null
 $taskReport = [ordered]@{ outcome='failed'; candidateRun=$CandidateRun; candidateSha=$CandidateSha; baselineTag='v0.1.6-beta.1'; checks=[ordered]@{}; environment='Disposable GitHub-hosted Windows runner, silent elevated installation; UAC interaction not exercised'; phase='download' }
 $taskReport.os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber)
+$taskReport.volumes=@(Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystemType,DriveType)
 function Invoke-Checked([string]$File, [string[]]$Arguments, [int]$Timeout = 180) {
     $taskChild = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru -WindowStyle Hidden
     if (-not $taskChild.WaitForExit($Timeout * 1000)) { & taskkill.exe /PID $taskChild.Id /T /F | Out-Null; throw "Process exceeded deadline: $([IO.Path]::GetFileName($File))" }
@@ -51,10 +52,17 @@ function Test-InstalledApp {
     }
 }
 function Test-FastIndex([string]$Name) {
-    Invoke-Checked $taskExe @('--smoke-test-fast') 180
-    $taskSmoke = Get-Content 'test-results/fast-native-smoke.json' -Raw | ConvertFrom-Json
+    # 使用系统盘上的独立夹具，避免托管运行器工作盘的卷类型影响 NTFS 验收。
+    $taskFastRoot=Join-Path $env:RUNNER_TEMP ("supersearch-fast-"+$Name)
+    New-Item -ItemType Directory -Force -Path $taskFastRoot | Out-Null
+    Push-Location $taskFastRoot
+    try { Invoke-Checked $taskExe @('--smoke-test-fast') 180 }
+    finally {
+        if(Test-Path -LiteralPath 'test-results/fast-native-smoke.json') { Copy-Item -LiteralPath 'test-results/fast-native-smoke.json' -Destination (Join-Path $taskOutput "$Name-fast.json") }
+        Pop-Location
+    }
+    $taskSmoke = Get-Content (Join-Path $taskOutput "$Name-fast.json") -Raw | ConvertFrom-Json
     if ($taskSmoke.outcome -ne 'passed' -or $taskSmoke.engine.indexing -ne 'ntfs-usn') { throw 'Installed NTFS/USN diagnostic failed.' }
-    Copy-Item -LiteralPath 'test-results/fast-native-smoke.json' -Destination (Join-Path $taskOutput "$Name-fast.json")
 }
 function Assert-InstalledPayload {
     $taskActual=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
@@ -114,6 +122,8 @@ try {
     Test-InstalledApp
     & node scripts/native-installation-store.mjs check
     if ($LASTEXITCODE -ne 0) { throw 'Upgrade did not preserve synthetic state.' }
+    $taskReport.checks.upgradePayloadAndStateRetention='passed'
+    $taskReport.phase='upgrade-fast-index'
     Test-FastIndex 'upgrade'
     $taskReport.checks.upgradeAndStateRetention='passed'
     $taskReport.phase='coexistence'
