@@ -51,9 +51,9 @@ function Test-InstalledApp {
         if (-not $taskChild.HasExited) { & taskkill.exe /PID $taskChild.Id /T /F | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'Cannot stop diagnostic application tree.' } }
     }
 }
-function Test-FastIndex([string]$Name) {
+function Test-FastIndex([string]$Name, [switch]$Workspace) {
     # 使用系统盘上的独立夹具，避免托管运行器工作盘的卷类型影响 NTFS 验收。
-    $taskFastRoot=Join-Path $env:RUNNER_TEMP ("supersearch-fast-"+$Name)
+    $taskFastRoot=if($Workspace){Join-Path $taskRoot ('.tools/native-install-fast-'+$Name)}else{Join-Path $env:RUNNER_TEMP ("supersearch-fast-"+$Name)}
     New-Item -ItemType Directory -Force -Path $taskFastRoot | Out-Null
     Push-Location $taskFastRoot
     try { Invoke-Checked $taskExe @('--smoke-test-fast') 180 }
@@ -126,6 +126,9 @@ try {
     $taskReport.phase='upgrade-fast-index'
     Test-FastIndex 'upgrade'
     $taskReport.checks.upgradeAndStateRetention='passed'
+    $taskReport.phase='workspace-fast-index'
+    Test-FastIndex 'workspace' -Workspace
+    $taskReport.checks.workspaceNtfsQueries='passed'
     $taskReport.phase='coexistence'
     $taskPersonal = Join-Path $taskOutput 'personal-Everything.exe'
     Copy-Item -LiteralPath (Join-Path $taskInstall 'engine/Everything.exe') -Destination $taskPersonal
