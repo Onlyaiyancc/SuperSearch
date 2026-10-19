@@ -24,6 +24,9 @@ function fixture() {
   write('src-tauri/Cargo.toml', '[package]\nname = "supersearch"\nversion = "0.1.6"\n\n[dependencies]\nother = { version = "2" }', 600_000);
   write('src-tauri/tauri.conf.json', { version: '0.1.6' }, 600_000);
   write('src/App.svelte', '<main>Search</main>', 600_000);
+  write('LICENSE', 'Project MIT license', 600_000);
+  write('THIRD-PARTY-NOTICES.md', 'Third-party notice index', 600_000);
+  write('docs/licenses/THIRD-PARTY-LICENSES.txt', 'Dependency, Everything and SDK license texts', 600_000);
   write('src-tauri/target/release/supersearch.exe', 'final executable', 240_000);
   write('src-tauri/target/release/bundle/nsis/SuperSearch_0.1.6_x64-setup.exe', 'final installer', 180_000);
   const verification = {
@@ -128,14 +131,15 @@ describe('release publication', () => {
     const { root, options } = fixture();
     const manifest = publishRelease(options);
     expect(manifest.version).toBe('0.1.6');
-    expect(manifest.files).toHaveLength(5);
+    expect(manifest.files).toHaveLength(8);
+    expect(manifest.files.map(file => file.name)).toEqual(expect.arrayContaining(['LICENSE', 'THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-LICENSES.txt']));
     for (const file of manifest.files) {
       const bytes = readFileSync(join(root, output, file.name));
       expect(file.sha256).toBe(sha256(bytes));
       expect(file.bytes).toBe(bytes.length);
     }
     const sums = readFileSync(join(root, output, 'SHA256SUMS.txt'), 'utf8').trim().split('\n');
-    expect(sums).toHaveLength(6);
+    expect(sums).toHaveLength(9);
     for (const line of sums) {
       const [hash, name] = line.split('  ');
       expect(hash).toBe(sha256(readFileSync(join(root, output, name))));

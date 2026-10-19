@@ -166,6 +166,9 @@ export function publishRelease({ projectRoot = dirname(dirname(scriptPath)), out
     ['SuperSearch.exe', executable], [installerName, installer],
     ['Verification-Report.json', verificationFile], ['UI-Native-Benchmark-Report.json', uiFile],
     ['Resource-Usage-Report.json', resourceFile],
+    ['LICENSE', loadFile(root, 'LICENSE')],
+    ['THIRD-PARTY-NOTICES.md', loadFile(root, 'THIRD-PARTY-NOTICES.md')],
+    ['THIRD-PARTY-LICENSES.txt', loadFile(root, 'docs/licenses/THIRD-PARTY-LICENSES.txt')],
   ];
   if (diagnostics) {
     // 浸泡和大目录证据只有时长、采样和最终 EXE 哈希全部符合要求才可发布。
