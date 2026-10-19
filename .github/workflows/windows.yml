@@ -26,11 +26,11 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
@@ -68,12 +68,26 @@ jobs:
           Compress-Archive -Path (Join-Path $taskDirectory '*') -DestinationPath 'test-results/github-release/SuperSearch-portable-x64.zip'
           Copy-Item 'src-tauri/target/release/bundle/nsis/*-setup.exe' 'test-results/github-release/'
           Get-ChildItem 'test-results/github-release' -File | Sort-Object Name | ForEach-Object { "$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)" } | Set-Content -Encoding utf8 'test-results/github-release/SHA256SUMS.txt'
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-release
           path: test-results/github-release/
           if-no-files-found: error
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Download release artifact for round-trip verification
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-release
+          path: test-results/github-artifact-check/
+      - name: Verify downloaded artifact matches local release files
+        run: |
+          $taskOriginal = @(Get-ChildItem 'test-results/github-release' -File | Sort-Object Name)
+          $taskDownloaded = @(Get-ChildItem 'test-results/github-artifact-check' -File | Sort-Object Name)
+          if (Compare-Object @($taskOriginal.Name) @($taskDownloaded.Name)) { throw 'Release artifact file list mismatch' }
+          foreach ($taskFile in $taskOriginal) {
+            $taskCopy = Join-Path 'test-results/github-artifact-check' $taskFile.Name
+            if ((Get-FileHash -LiteralPath $taskFile.FullName -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $taskCopy -Algorithm SHA256).Hash) { throw "Release artifact checksum mismatch: $($taskFile.Name)" }
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: verification-evidence
@@ -87,10 +101,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-release
           path: release-assets
