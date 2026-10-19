@@ -18,3 +18,11 @@
 | 30 分钟资源行为 | 对同一候选程序运行 `npm run desktop:soak`，记录初末内存、趋势、查询延迟和失败次数；异常时保留原始样本。 | 合成窗口测试不证明实际输入行为；一次通过不能证明无内存泄漏。 |
 
 发布新 beta 前，至少完成首次索引、IME、快捷键/单实例、首次安装和覆盖升级。其余未完成项应在发布说明中明确保留，不能引用旧版本报告作为新构建的验收结果。
+
+## 自动安装生命周期验收
+
+手动运行 `Windows checks and pre-release`，启用 `native_acceptance`，填写成功的 main 分支构建 `candidate_run` 及其完整 `candidate_sha`，保持 tag 为空。该模式复用原构建资产，在新的 GitHub-hosted Windows 机器上执行旧 beta 安装、候选覆盖、设置/别名/固定项/历史保留、NTFS 查询、个人 Everything 共存卸载，以及全新用户数据下的候选安装。报告位于 `native-installation-evidence` artifact。
+
+`scripts/native-installation.ps1` 仅允许 PowerShell 7、GitHub-hosted 管理员运行器执行；发现已有相关安装或服务会拒绝操作。不要在日常电脑运行安装验收脚本或伪造其环境变量。运行器每次销毁，不涉及维护者的实际服务与数据。
+
+这项测试执行真实安装程序和服务操作，但采用提升权限后的静默安装；它不覆盖 UAC 点击、缺少 WebView2 的桌面环境或真实输入法/多屏交互。自动化验收通过后，继续执行上表中的实际交互项目。
