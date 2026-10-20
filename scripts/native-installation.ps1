@@ -173,6 +173,9 @@ try {
     Uninstall-Candidate
     if ((Get-Service $taskDefaultService).Status -ne 'Running') { throw 'Control service changed during second uninstall.' }
     $taskReport.checks.finalUninstall='passed'
+    . (Join-Path $PSScriptRoot 'webview2-acceptance.ps1')
+    Invoke-WebView2Acceptance
+    $taskReport.checks.missingWebView2DownloadFailureAndRetry='passed'
     $taskReport.outcome='passed'
 } catch { $taskReport.error=$_.Exception.Message; throw }
 finally {

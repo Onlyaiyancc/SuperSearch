@@ -138,6 +138,7 @@ jobs:
           path: |
             test-results/native-installation/report.json
             test-results/native-installation/*-fast.json
+            test-results/native-installation/webview2*.json
           if-no-files-found: error
 
   publish:
