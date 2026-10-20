@@ -1,4 +1,4 @@
-name: Bug report / 问题反馈
+name: Bug report
 description: Report a reproducible problem without personal data.
 body:
   - type: input

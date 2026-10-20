@@ -1,36 +1,44 @@
-# 原生候选验收清单
+# Native candidate acceptance checklist
 
-适用于 Windows x64 的候选发行程序。每次验收记录提交 SHA、安装包/便携包 SHA-256、Windows 与 WebView2 版本、显示器缩放、操作步骤及实际结果；未执行的项目标为“未验证”。截图和报告先放 `test-results/`，去除个人路径后再归档到对应版本的 `artifacts/releases/`。
+Use this checklist for Windows x64 candidate binaries. Record the source SHA, installer/portable SHA-256, Windows and WebView2 versions, display scaling, steps and actual results. Mark unexecuted checks **unverified**. Save screenshots and reports to `test-results/`, remove personal paths, then archive them under the matching `artifacts/releases/` version directory.
 
-自动测试、隔离烟测和 CI 制品校验不替代以下人工操作。安装生命周期测试应在可还原的 Windows 虚拟机中完成，提前建立快照。
+Automated tests, isolated smoke diagnostics and artifact checks do not replace physical interaction checks. Run installation lifecycle tests on a disposable hosted runner or a restorable Windows VM, never the maintainer's everyday machine.
 
-| 场景 | 操作与通过条件 | 当前证据边界 |
+| Scenario | Steps and pass criteria | Evidence limits |
 | --- | --- | --- |
-| 首次索引状态 | 全新启动后立即打开高级设置；索引完成时，“加载中”自动变为就绪，无需关闭重开。重复退出应用、启动、进入设置。 | 状态刷新有自动回归覆盖；真实 NTFS 首次索引时序仍需人工验收。 |
-| 中文输入法 | 使用微软拼音输入候选词，空格选词、回车确认，再回车打开结果；组合输入期间不得误启动应用。 | 自动状态测试不等于真实 IME 交互。 |
-| 快捷键与单实例 | 连续按 Alt+Space、隐藏后唤回、重复启动程序；只存在一个主实例，焦点回到搜索框，托盘退出后可重新启动。 | 需要真实窗口焦点与快捷键验收。 |
-| 多屏与缩放 | 在 100%、150%、200% 缩放显示器之间切换，移动窗口、断开副屏；搜索结果和设置不得跑到工作区外。 | 合成尺寸测试不能覆盖显示器热插拔。 |
-| 睡眠唤醒 | 搜索后睡眠并唤醒，重新查询并打开设置；应用可交互，索引状态恢复，查询不永久卡住。 | 需要真实系统生命周期验收。 |
-| 首次安装 | 干净虚拟机中运行安装包、接受 UAC；验证 `Everything (SuperSearch)` 服务、开始菜单入口、搜索和退出；记录 WebView2 前置依赖行为。 | CI 仅构建安装包，未执行安装。 |
-| 覆盖升级 | 在虚拟机中安装旧版，设置快捷键/别名/固定项，从托盘退出，再安装候选版；配置保留且服务可用。 | 需分别记录旧版和候选版哈希。 |
-| 卸载与共存 | 虚拟机同时安装个人 Everything；卸载 SuperSearch 后专用服务与程序被移除，个人 Everything 仍工作；记录用户配置是否保留。 | 不在维护者日常系统执行破坏性验收。 |
-| 便携模式 | 在没有专用服务的虚拟机中解压完整 ZIP，选择合成目录；可扫描、查询、打开夹具文件并退出。 | 隔离引擎烟测覆盖目录查询；完整 UI 流程需人工验收。 |
-| 30 分钟资源行为 | 对同一候选程序运行 `npm run desktop:soak`，记录初末内存、趋势、查询延迟和失败次数；异常时保留原始样本。 | 合成窗口测试不证明实际输入行为；一次通过不能证明无内存泄漏。 |
+| First-index status | Open advanced settings immediately after a fresh start. Loading must become ready without reopening settings. Repeat app exit, launch and settings entry. | Regression tests cover status refresh; real NTFS timing needs native evidence. |
+| Chinese IME | Use Microsoft Pinyin, choose a candidate with Space, confirm with Enter, then press Enter to launch. Composition must not launch an app accidentally. | State tests are not physical IME evidence. |
+| Shortcut and single instance | Repeat Alt+Space, hide/recall and duplicate launches. One main instance remains, focus returns to search, and tray exit permits relaunch. | Requires real focus and shortcut checks. |
+| Monitors and scaling | Move between 100%, 150% and 200% monitors, move the window and disconnect a secondary display. Search/settings must remain within the work area. Test remembered and pointer-monitor positioning. | Synthetic geometry tests do not establish physical hot-plug behavior. |
+| Sleep/wake | Search, sleep, wake, query again and open settings. Interaction and provider status recover without a permanently stuck query. | Requires real system lifecycle checks. |
+| Fresh install | In a disposable environment, install and verify the dedicated service, Start menu entry, search, exit and WebView2 behavior. Separately accept an interactive UAC prompt. | Hosted lifecycle checks use elevated silent installation and do not exercise UAC clicks. |
+| Upgrade | Install the baseline, configure shortcuts/aliases/pins, exit from the tray and install the candidate. Verify retained data and service availability. | Record both versions and hashes; a same-version replacement is not upgrade evidence. |
+| Uninstall and coexistence | Install personal Everything too. Uninstall SuperSearch and verify its program/service removal, personal Everything functionality and user-data retention behavior. | Use an isolated environment. |
+| Portable mode | Extract the complete ZIP without a dedicated service. Use a synthetic folder and verify scanning, searching, opening fixtures and exit. | Engine smoke covers directory queries; the complete UI flow needs its own evidence. |
+| 30-minute resources | Run `npm run desktop:soak` against the exact candidate. Record memory change/trend, query latency and failures; retain raw samples. | Synthetic windows do not prove physical interaction or absence of memory leaks. |
 
-发布新 beta 前，至少完成首次索引、IME、快捷键/单实例、首次安装和覆盖升级。其余未完成项应在发布说明中明确保留，不能引用旧版本报告作为新构建的验收结果。
+Before a new beta, cover first-index status, IME, shortcuts/single instance, fresh install and upgrade. Disclose remaining gaps in release notes. Do not present older-build results as acceptance of a new build.
 
-正式版候选还必须使用不同内部版本验证升级；0.1.7 的基线固定为公开 0.1.6 beta.1 安装包及其已知哈希。安装包、便携 EXE 和安装后 EXE 的版本必须与候选提交一致。首次冷索引记录 `initialIndex` 各阶段观测与失败状态，原生资源报告绑定候选 EXE 哈希。正式公开前由维护者结合尚未验证的系统场景决定是否接受剩余风险，不能把准备完成写成全场景验收通过。
+Stable candidates must demonstrate upgrades across different internal versions. The v0.1.7 baseline is the public 0.1.6 beta.1 installer and its known hash. Installer, portable executable and installed executable versions must match the candidate source. Cold-index reports retain `initialIndex` observations and failures; resource reports identify the candidate executable hash. The maintainer decides whether the remaining gaps are acceptable before publication; preparation does not establish all-scenario acceptance.
 
-## 自动安装生命周期验收
+## Automated installation lifecycle
 
-手动运行 `Windows checks and pre-release`，启用 `native_acceptance`，填写成功的 main 分支构建 `candidate_run` 及其完整 `candidate_sha`，保持 tag 为空。该模式复用原构建资产，在新的 GitHub-hosted Windows 机器上执行旧 beta 安装、候选覆盖、设置/别名/固定项/历史保留、NTFS 查询、个人 Everything 共存卸载，以及全新用户数据下的候选安装。报告位于 `native-installation-evidence` artifact。
+Manually dispatch **Windows checks and pre-release** with `native_acceptance` enabled, the successful main build's `candidate_run` and full `candidate_sha`, and an empty tag. It reuses the exact build assets on a fresh GitHub-hosted Windows runner to install the baseline, upgrade, verify settings/aliases/pins/history, query NTFS, uninstall with personal Everything present, and install with fresh user data. Reports are uploaded as `native-installation-evidence`.
 
-`scripts/native-installation.ps1` 仅允许 PowerShell 7、GitHub-hosted 管理员运行器执行；发现已有相关安装或服务会拒绝操作。不要在日常电脑运行安装验收脚本或伪造其环境变量。运行器每次销毁，不涉及维护者的实际服务与数据。
+`scripts/native-installation.ps1` requires PowerShell 7 and a GitHub-hosted Windows administrator runner. It rejects existing relevant installations or services. Never run it on an everyday computer or spoof runner environment variables. The disposable runner does not operate on the maintainer's services or data.
 
-这项测试执行真实安装程序和服务操作，但采用提升权限后的静默安装；它不覆盖 UAC 点击、缺少 WebView2 的桌面环境或真实输入法/多屏交互。自动化验收通过后，继续执行上表中的实际交互项目。
+This executes real installers and services using elevated silent installation. Physical UAC, IME and monitor interaction remain separate checks. Missing-WebView2 recovery is tested by the additional protocol below.
 
-## 缺少 WebView2 的云端补测
+## Missing-WebView2 cloud protocol
 
-`native-installation.ps1` 完成原有安装生命周期后调用 `webview2-acceptance.ps1`。只允许 Windows GitHub-hosted 管理员运行器；普通电脑、自托管运行器和其他系统会先被拒绝。该阶段核验微软签名的系统运行时卸载器，确认运行时注册信息和可执行文件均不存在，再用仅针对本次安装器的出站防火墙规则阻断下载。必须出现非零退出，且没有留下程序或专属服务；移除规则后重试安装，核验运行时恢复、安装载荷、服务及真实 WebView 前端诊断。最后卸载候选程序。
+After lifecycle checks, `native-installation.ps1` invokes `webview2-acceptance.ps1`. It permits only GitHub-hosted Windows administrator runners and rejects ordinary computers, self-hosted runners and other systems first.
 
-报告为 `native-installation-evidence` 中的 `webview2.json`、`webview2-ui.json`，同时保留主报告及确切候选来源和哈希。防火墙规则在 finally 中移除；不禁用全机网络，不操作维护者电脑，不把注册表伪装为空当作真正缺少运行时。该协议覆盖托管 Windows 的静默安装行为，不覆盖 Windows 10/11 所有版本、交互式错误弹窗措辞或 UAC 点击。只有新的实际运行报告通过后才能登记该结果。
+The protocol verifies the Microsoft-signed runtime uninstaller and removes the real runtime, confirming both registry entries and runtime executables are absent. An outbound firewall rule limited to this candidate installer blocks runtime download. Installation must fail without leaving the program or dedicated service. After removing the rule, a retry must restore the runtime, match the expected application payload, start the service and pass a real native WebView frontend diagnostic. The candidate is then uninstalled.
+
+Reports `webview2.json` and `webview2-ui.json` accompany the main report and exact candidate provenance in `native-installation-evidence`. The firewall rule is removed in `finally`. The protocol does not disable machine-wide networking, alter the maintainer's system or treat hidden registry entries as actual runtime removal.
+
+This establishes hosted Windows silent-install behavior, not every Windows 10/11 version, interactive error wording or UAC clicks. Record a result only after a successful actual run.
+
+## v0.1.7 published evidence
+
+The [build](https://github.com/Onlyaiyancc/SuperSearch/actions/runs/39364003496) and [cloud acceptance](https://github.com/Onlyaiyancc/SuperSearch/actions/runs/39371289628) identify the exact published candidate. The release's `Release-Acceptance.md` distinguishes cloud checks, short native diagnostics, maintainer-reported interaction and remaining gaps. It is the summary for that release; this checklist defines procedures for future candidates.

@@ -1,43 +1,82 @@
 # SuperSearch
 
-面向 Windows 的应用启动与文件名称搜索工具，基于 Tauri 2、Rust、Svelte 5 和 Everything SDK。简体中文界面，支持拼音匹配、快捷键呼出、文件搜索与本地使用历史排序。
+**English** | [简体中文](README.zh-CN.md)
 
-当前正式版为 **[v0.1.7](https://github.com/Onlyaiyancc/SuperSearch/releases/tag/v0.1.7)，未签名**。仅支持 Windows x64，需要 WebView2 Runtime。
+A Windows app launcher and file-name search tool, built with Tauri 2, Rust, Svelte 5 and the Everything SDK. Find apps, files and folders with name, pinyin, initials and alias matching from a keyboard-driven search bar.
 
-![搜索界面：合成样例数据](docs/images/search-preview.png)
+**[Download v0.1.7](https://github.com/Onlyaiyancc/SuperSearch/releases/tag/v0.1.7)** · [All releases](https://github.com/Onlyaiyancc/SuperSearch/releases) · [Report a bug](https://github.com/Onlyaiyancc/SuperSearch/issues/new?template=bug.yml)
 
-## 下载与使用
+Windows x64 only. The application interface is currently Simplified Chinese. Release binaries are **unsigned** and require Microsoft WebView2 Runtime.
 
-公开安装包和便携 ZIP 位于 [最新正式版](https://github.com/Onlyaiyancc/SuperSearch/releases/latest)。下载后可用随版本提供的 SHA256SUMS.txt 校验文件；未签名程序可能触发 Windows SmartScreen 提示。
+![Search interface with synthetic sample results](docs/images/search-preview.png)
 
-- 默认 **Alt＋Space** 呼出，**Ctrl＋,** 打开设置。
-- 输入名称或拼音查找应用、文件及文件夹，方向键选择，Enter 打开，Tab 补全。
-- 成功打开过的匹配项优先；无本地匹配时 Enter 使用必应搜索，Shift＋Enter 强制网页搜索。
-- 支持别名、固定项目、搜索范围，以及浅色、深色和跟随系统主题。
-- 可在通用设置中选择“记住上次位置”或“跟随鼠标所在显示器”；鼠标跟随在呼出时居中，展开结果时保持当前位置。
+## Features
 
-安装包通过管理员授权安装独立的 `Everything (SuperSearch)` 服务，为 NTFS 固定磁盘提供高速索引，避免与个人 Everything 安装混用。服务不可用或其它文件系统使用目录扫描。首次建立索引需要时间；设置页会在打开索引面板时持续刷新加载状态。
+- Search installed apps, files and folders by name; use pinyin, initials and aliases for app matching.
+- Open the search bar with a configurable global shortcut and navigate results with the keyboard.
+- Prioritize matching items you have opened before; pin items and configure search locations.
+- Use a dedicated Everything service for fast NTFS indexing, with directory scanning when the service is unavailable or the file system is unsupported.
+- Choose light, dark or system appearance, and recall the window at its remembered position or centered on the monitor containing the pointer.
+- Search the web explicitly, or use Bing as a fallback when a completed local search has no matches.
 
-升级前先从托盘退出旧实例。便携 ZIP 需保留随附许可文件；完整安装体验和服务注册使用安装包。
+## Download and install
 
-## 数据与限制
+Choose an asset from the [latest stable release](https://github.com/Onlyaiyancc/SuperSearch/releases/latest):
 
-普通运行默认不发送遥测。使用历史和设置保存在本机，可在设置中关闭历史记录或清除数据。主动触发网页搜索时，查询会交给默认浏览器和必应。
+| Asset | Use |
+| --- | --- |
+| `SuperSearch_0.1.7_x64-setup.exe` | Recommended for the complete installation and dedicated indexing service. Requires administrator permission. |
+| `SuperSearch-portable-x64.zip` | Extract the complete archive and run `SuperSearch.exe`. Keep all bundled license files. WebView2 must already be installed. |
+| `SHA256SUMS.txt` | SHA-256 checksums for the release attachments. |
+| `Release-Acceptance.md` | Validation evidence and remaining limitations for this build. |
 
-浏览器预览和本页截图使用合成样例，不执行本地搜索或启动操作。v0.1.7 的构建、安装升级、卸载共存及缺少 WebView2 后的联网恢复已在临时 Windows 环境验证，详见发布附件 Release-Acceptance.md。维护者已反馈本地候选版的输入法、快捷键、睡眠唤醒、屏幕热插拔与 UAC 正常；这些交互记录未独立核对运行文件哈希。真实 150%/200% 缩放仍未单独验证，云端 Server 2025 验收不覆盖所有 Windows 10/11 组合。当前正式包仅有短时资源诊断；旧版 30 分钟记录不替代其长期测试。
+Before upgrading, exit the old instance from the system tray. The installer registers `Everything (SuperSearch)` separately from a personal Everything installation. If WebView2 is missing, it downloads the runtime; restore network access and retry if the download fails. Portable mode uses directory scanning when the dedicated service is unavailable. Initial indexing can take several minutes; the advanced settings panel refreshes the loading state automatically.
 
-![设置界面：浏览器样例](docs/images/settings-preview.png)
-
-## 开发
-
-准备 Windows x64、Node.js 24 LTS、Rust stable MSVC、Visual Studio C++ Build Tools 和 WebView2，然后运行：
+The app and installer are unsigned, so Windows may display an unknown-publisher or SmartScreen prompt. Download from this repository's Releases page and compare the downloaded file with `SHA256SUMS.txt`:
 
 ```powershell
+Get-FileHash .\SuperSearch_0.1.7_x64-setup.exe -Algorithm SHA256
+```
+
+## Quick start
+
+| Shortcut | Action |
+| --- | --- |
+| `Alt+Space` | Show or hide the search bar; configurable in settings. |
+| `↑` / `↓` | Select a result. |
+| `Enter` | Open the selected result, or search Bing after a completed local search returns no matches. |
+| `Ctrl+Enter` | Reveal the selected local item in File Explorer. |
+| `Shift+Enter` | Search the current query on Bing. |
+| `Tab` | Cycle available path completions. |
+| `Ctrl+,` | Open settings. |
+| `Esc` | Close the current panel or hide the search bar. |
+
+In **Settings → General**, change the shortcut, theme and display positioning. The positioning choices are “记住上次位置” (remember the last position) and “跟随鼠标所在显示器” (follow the pointer's monitor). Use a result's action menu to pin it or edit an application's aliases; configure search locations under **Settings → Search**.
+
+![Settings interface with browser sample data](docs/images/settings-preview.png)
+
+## Privacy and validation
+
+Normal operation sends no telemetry by default. Settings and usage history stay on the local machine; history can be disabled or cleared in settings. An explicit web search passes the query to the default browser and Bing.
+
+The exact v0.1.7 installer passed upgrade, retained-data, service-query, uninstall/coexistence and fresh-install checks on a disposable Windows runner. Missing-WebView2 testing verified failed-download cleanup and successful online recovery on Windows Server 2025. The exact portable executable passed a short native UI/resource diagnostic.
+
+The maintainer reported local candidate IME, shortcut/single-instance, persistence, engine restart, sleep/wake, display unplug/positioning and interactive UAC normal; those physical checks did not independently confirm running-file hashes. Separate 150%/200% DPI results and interactive dependency-error wording remain unverified. Server 2025 checks do not cover every Windows 10/11 configuration. Older 30-minute reports do not establish long-duration behavior for this release. See [release notes](docs/releases/v0.1.7.md) and the attached acceptance report for scope.
+
+Screenshots and browser preview use synthetic data. They do not perform native searches or launch local apps.
+
+## Build from source
+
+Prepare Windows x64, Git, Node.js 24 LTS, Rust stable MSVC, Visual Studio C++ Build Tools with the Windows SDK, and WebView2. See the [development guide](docs/development.md) for setup and troubleshooting.
+
+```powershell
+git clone https://github.com/Onlyaiyancc/SuperSearch.git
+cd SuperSearch
 npm ci
 npm run desktop:dev
 ```
 
-检查与构建：
+Validate and build:
 
 ```powershell
 npm run verify -- --smoke
@@ -45,21 +84,23 @@ npm run notices -- --check
 npm run desktop:build
 ```
 
-Rust 命令统一使用 `npm run desktop:*`。启动器优先使用已有项目本地工具链，缺少时使用标准安装的 Rust，不需要复制维护者的 `.tools/`。完整步骤见[开发与构建](docs/development.md)，发布流程见[发布指南](docs/releasing.md)。
+Run Rust commands through `npm run desktop:*`. The wrapper uses an existing project-local toolchain or a standard Rust installation; copying the maintainer's `.tools/` is unnecessary. `npm run dev` starts a browser preview with sample data. See the [release guide](docs/releasing.md) for packaging and publication.
 
-| 目录 | 内容 |
+## Project structure
+
+| Directory | Contents |
 | --- | --- |
-| [src](src/) | Svelte / TypeScript 前端 |
-| [src-tauri](src-tauri/) | Rust 后端、安装器、内置引擎与原始许可 |
-| [public](public/) | 静态资源与图标源文件 |
-| [scripts](scripts/) | 构建、诊断、许可生成与发布工具 |
-| [tests](tests/) | 前端和工具链测试 |
-| [docs](docs/README.md) | 开发、设计、验证范围与发布说明 |
+| [src](src/) | Svelte / TypeScript frontend. |
+| [src-tauri](src-tauri/) | Rust backend, installer, bundled engine and vendor notices. |
+| [public](public/) | Static assets and icon source. |
+| [scripts](scripts/) | Build, diagnostics, license and release tools. |
+| [tests](tests/) | Frontend and tooling tests. |
+| [docs](docs/README.md) | Development, release, design and validation documentation. |
 
-依赖、构建缓存、个人工具配置、诊断和本地交付归档不提交到 Git。根目录只保留常见项目文件与必要目录；本地交付放在 `artifacts/releases/`，历史材料放在 `artifacts/archive/`。
+Dependencies, build caches, personal configuration and local diagnostic artifacts are excluded from Git. Local deliveries belong under `artifacts/releases/`, with historical material under `artifacts/archive/`.
 
-## 参与和许可
+## Contributing and license
 
-欢迎提交可复现的问题和改进，参见 [CONTRIBUTING.md](CONTRIBUTING.md)。漏洞报告方式见 [SECURITY.md](SECURITY.md)。
+Bug reports and focused contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md); report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-SuperSearch 原创代码使用 [MIT 许可证](LICENSE)。内置的未修改 Everything 程序、Everything SDK 和其它依赖保留各自许可；MIT 不覆盖这些组件。详见[第三方声明](THIRD-PARTY-NOTICES.md)及[依赖许可全文](docs/licenses/THIRD-PARTY-LICENSES.txt)。本项目不隶属于 voidtools，也不代表其背书。
+Original SuperSearch code is [MIT licensed](LICENSE). Bundled Everything, its SDK and other dependencies retain their own terms; the project license does not replace those terms. See [third-party notices](THIRD-PARTY-NOTICES.md) and [dependency license texts](docs/licenses/THIRD-PARTY-LICENSES.txt). SuperSearch is independent of voidtools and is not endorsed by it.
