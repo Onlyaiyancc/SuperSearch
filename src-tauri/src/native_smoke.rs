@@ -230,6 +230,11 @@ pub fn run_bundled() -> Result<(), String> {
 
         let restart_started = Instant::now();
         client.retry(vec![scope.to_string_lossy().into_owned()])?;
+        let restart_status = client.status();
+        if !matches!(restart_status.status.as_str(), "ready" | "loading" | "indexLoading") {
+            return Err("Manual retry exposed a terminal status before the replacement engine was ready.".into());
+        }
+        report["checks"]["manualRetryStatus"] = json!({"outcome":"passed","immediateStatus":restart_status.status});
         wait_ready()?;
         report["startup"]["cachedIndexRestartReadyMs"] = json!(restart_started.elapsed().as_millis());
         report["checks"]["cachedIndexRestart"] = json!({"outcome":"passed"});

@@ -77,6 +77,7 @@ pub struct Settings {
     pub everything_path: String,
     pub auto_start_everything: bool,
     pub theme: String,
+    pub window_placement: String,
 }
 
 impl Default for Settings {
@@ -94,6 +95,7 @@ impl Default for Settings {
             everything_path: String::new(),
             auto_start_everything: false,
             theme: "light".into(),
+            window_placement: "remember".into(),
         }
     }
 }
@@ -108,6 +110,13 @@ pub struct UsageStat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn settings_accept_cursor_placement_and_keep_missing_field_compatible() {
+        let value: Settings = serde_json::from_str(r#"{"windowPlacement":"cursor"}"#).unwrap();
+        assert_eq!(serde_json::to_value(value).unwrap()["windowPlacement"], "cursor");
+        let old: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(serde_json::to_value(old).unwrap()["windowPlacement"], "remember");
+    }
     #[test]
     fn settings_default_to_private_opt_in_startup() {
         let settings: Settings = serde_json::from_str("{}").unwrap();

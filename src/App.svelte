@@ -312,6 +312,9 @@
     modal = null;
     hidden = false;
     view = 'search';
+    const epoch = uiEpoch;
+    // 隐藏时的 DPI 事件可能被忽略；真正呼出后再按当前屏幕强制确认紧凑尺寸。
+    void syncLayout({ layout: 'compact', rows: 0 }, true).catch(value => { if (epoch === uiEpoch && !hidden) error = message(value); });
     if (previous) void call('cancel_search', { requestId: previous }).catch(() => {});
     void refreshProviderStatus();
     void tick().then(() => input?.focus());
@@ -530,6 +533,10 @@
       try {
         for (const [event, handler] of [
           ['search_snapshot', (value: SearchSnapshot) => applySnapshot(value)],
+          ['window_scale_changed', () => {
+            const epoch = uiEpoch;
+            if (!hidden) void syncLayout({ ...layout }, true).catch(value => { if (epoch === uiEpoch && !hidden) error = message(value); });
+          }],
           ['show_search', () => { showSearch(); if (soakCycle?.hiddenSeen) soakCycle.resolve(); }],
           ['settings_requested', () => { showSearch(); void openSettings(); }],
           ['hide_search', () => { uiEpoch++; busy = false; hidden = true; scheduledKey = ''; invalidate(); if (soakCycle) soakCycle.hiddenSeen = true; }],
@@ -672,6 +679,7 @@
           </div>
           <div class="setting-row"><div><label for="autostart">登录时启动</label><p>开机后自动运行 SuperSearch。</p></div><input id="autostart" type="checkbox" role="switch" class="switch" bind:checked={draft.autostart} /></div>
           <div class="setting-row"><div><label for="history">记录使用历史</label><p>根据本地记录，让常用项目更靠前。</p></div><input id="history" type="checkbox" role="switch" class="switch" bind:checked={draft.recordHistory} /></div>
+          <div class="setting-row placement-setting"><div><label for="window-placement">显示位置</label><p id="window-placement-help">选择再次呼出时使用的位置；展开结果时保持当前位置。</p></div><select id="window-placement" aria-describedby="window-placement-help" bind:value={draft.windowPlacement}><option value="remember">记住上次位置</option><option value="cursor">跟随鼠标所在显示器</option></select></div>
           <fieldset class="appearance-field"><legend>外观</legend><p>选择搜索窗口的主题。</p><div class="theme-options">
             <label class="theme-choice theme-light"><input type="radio" name="theme" value="light" bind:group={draft.theme} /><Sun size={24} strokeWidth={1.5} /><span>浅色</span></label>
             <label class="theme-choice theme-dark"><input type="radio" name="theme" value="dark" bind:group={draft.theme} /><Moon size={24} strokeWidth={1.5} /><span>深色</span></label>

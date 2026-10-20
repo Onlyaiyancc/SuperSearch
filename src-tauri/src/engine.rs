@@ -28,6 +28,7 @@ pub struct ManagedEngine {
     options: EngineOptions,
     job: usize,
     fast: bool,
+    startup_deadline: Option<Instant>,
 }
 
 impl ManagedEngine {
@@ -55,7 +56,7 @@ impl ManagedEngine {
             unsafe { CloseHandle(job as *mut c_void); }
             return Err("Unable to guard the bundled file search process.".into());
         }
-        Ok(Self { child, options, job, fast })
+        Ok(Self { child, options, job, fast, startup_deadline: Some(Instant::now() + Duration::from_secs(30)) })
     }
 
     pub fn needs_restart(&mut self) -> bool {
@@ -73,6 +74,7 @@ impl ManagedEngine {
             Err(_) => { status.status = "unavailable".into(); status.message = "Bundled file search process status is unavailable.".into(); return status; }
             _ => {}
         }
+        status = startup_status(status, &mut self.startup_deadline, Instant::now());
         status.message = match status.status.as_str() {
             "ready" if self.fast => "Bundled file search is ready. NTFS/USN fast indexing service is active.".into(),
             "ready" => "Bundled file search is ready. Folder fallback is active; install the machine setup to enable NTFS/USN fast indexing.".into(),
@@ -86,6 +88,16 @@ impl ManagedEngine {
     pub fn diagnostics(&self) -> Value {
         json!({"mode":"bundled", "version":VERSION, "indexing":if self.fast { "ntfs-usn" } else { "folders" }, "serviceName":SERVICE_NAME, "serviceRunning":service_running(), "instance":self.options.instance, "scope":self.options.scope, "processId":self.child.id()})
     }
+}
+
+fn startup_status(mut status: ProviderStatus, deadline: &mut Option<Instant>, now: Instant) -> ProviderStatus {
+    // 启动早期仅把 SDK 超时视为加载；进程/服务故障已先检查，就绪或超期后保留真实超时。
+    if status.status == "ready" { *deadline = None; }
+    if status.status == "unavailable" && status.message == "Everything IPC timed out."
+        && deadline.is_some_and(|until| now < until) {
+        status.status = "indexLoading".into();
+    }
+    status
 }
 
 fn service_mode_changed(fast: bool, force_folders: bool, available: bool) -> bool {
@@ -195,6 +207,20 @@ extern "system" {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn startup_ipc_timeouts_have_bounded_grace_and_ready_ends_grace() {
+        let now = Instant::now();
+        let mut deadline = Some(now + Duration::from_secs(30));
+        let timeout = || ProviderStatus { id: "everything".into(), status: "unavailable".into(), message: "Everything IPC timed out.".into() };
+        assert_eq!(startup_status(timeout(), &mut deadline, now).status, "indexLoading");
+        let failed = ProviderStatus { message: "Unable to start bundled file search.".into(), ..timeout() };
+        assert_eq!(startup_status(failed, &mut deadline, now).status, "unavailable");
+        assert_eq!(startup_status(timeout(), &mut deadline, now + Duration::from_secs(30)).status, "unavailable");
+        let ready = ProviderStatus { status: "ready".into(), message: "Everything is ready.".into(), ..timeout() };
+        assert_eq!(startup_status(ready, &mut deadline, now).status, "ready");
+        assert_eq!(startup_status(timeout(), &mut deadline, now).status, "unavailable");
+    }
 
     #[test]
     fn service_restoration_upgrades_fallback_on_demand_but_preserves_isolated_scope() {

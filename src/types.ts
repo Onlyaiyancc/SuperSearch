@@ -46,4 +46,5 @@ export type Settings = {
   everythingPath: string | null;
   autoStartEverything: boolean;
   theme: 'system' | 'light' | 'dark';
+  windowPlacement: 'remember' | 'cursor';
 };

@@ -422,6 +422,7 @@ fn validate_settings(settings: &Settings) -> Result<(), String> {
     }
     if settings.settings_version == 0
         || !["system", "light", "dark"].contains(&settings.theme.as_str())
+        || !["remember", "cursor"].contains(&settings.window_placement.as_str())
         || settings.shortcut.len() > 80
     {
         return Err("Invalid settings".into());
@@ -512,6 +513,17 @@ fn atomic_replace(source: &Path, target: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn window_placement_is_validated_and_persists_across_reopen() {
+        let f = Fixture::new();
+        let mut store = Store::new(&f.0).unwrap();
+        let version = store.settings().settings_version;
+        assert!(store.save_settings(version, serde_json::json!({"windowPlacement":"active-app"})).is_err());
+        let saved = store.save_settings(version, serde_json::json!({"windowPlacement":"cursor"})).unwrap();
+        assert_eq!(saved.window_placement, "cursor");
+        drop(store);
+        assert_eq!(Store::new(&f.0).unwrap().settings().window_placement, "cursor");
+    }
     use std::{
         fs,
         sync::atomic::{AtomicU64, Ordering},
