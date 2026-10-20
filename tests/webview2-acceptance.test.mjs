@@ -11,9 +11,9 @@ describe.skipIf(process.platform !== 'win32')('WebView2 cloud acceptance safety'
       . ([scriptblock]::Create([IO.File]::ReadAllText((Join-Path $PWD 'scripts/webview2-acceptance.ps1'), [Text.Encoding]::UTF8)))
       try { Invoke-WebView2Acceptance; throw 'Guard did not reject execution.' }
       catch { if ($_.Exception.Message -ne 'Disposable Windows GitHub-hosted runner required.') { throw }; Write-Output 'guard-passed' }
-    `], { encoding: 'utf8', env: { ...process.env, ...environment }, windowsHide: true });
+    `], { encoding: 'utf8', env: { ...process.env, ...environment }, windowsHide: true, timeout: 15_000 });
     expect(result.error).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout.trim()).toBe('guard-passed');
-  });
+  }, 20_000);
 });
