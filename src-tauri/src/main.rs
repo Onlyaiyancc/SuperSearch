@@ -100,6 +100,10 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window,event| {
+            if let tauri::WindowEvent::ScaleFactorChanged { .. } = event {
+                // DPI 变化可使系统重写物理尺寸，让前端按当前面板强制重发一次布局。
+                let _=tauri::Emitter::emit(window,"window_scale_changed",());
+            }
             if let tauri::WindowEvent::CloseRequested{api,..}=event {
                 api.prevent_close();
                 service::invalidate(window.app_handle());

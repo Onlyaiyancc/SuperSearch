@@ -76,8 +76,7 @@ fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayo
     let scale = monitor.scale_factor();
     let work = monitor.work_area();
     let anchor = if initial_position { None } else { window.outer_position().ok() };
-    let width = if initial_position { 680.0 } else { window.inner_size().map(|size| size.width as f64 / window.scale_factor().unwrap_or(scale)).unwrap_or(680.0) };
-    let geometry = crate::layout::fit(layout, rows, width, work, scale, anchor);
+    let geometry = crate::layout::fit(layout, rows, work, scale, anchor);
     // 物理尺寸按目标屏幕 DPI 计算，跨屏移动时不依赖尚未更新的旧窗口 DPI。
     window.set_position(geometry.position).map_err(|e| e.to_string())?;
     window.set_min_size(Some(tauri::PhysicalSize::new((360.0*scale).round().min(work.size.width as f64) as u32, (76.0*scale).round().min(work.size.height as f64) as u32))).map_err(|e| e.to_string())?;
@@ -112,8 +111,9 @@ pub fn show(app: &AppHandle, settings: bool) {
     if let Some(window) = app.get_webview_window("main") {
         let layout = if settings { crate::layout::WindowLayout::Settings } else { crate::layout::WindowLayout::Compact };
         let state = app.state::<AppState>();
-        // 同一原生窗口只在首次成功定位时使用默认位置；后续呼出保留拖动后的坐标。
-        let initial_position = !state.window_position_initialized.load(Ordering::Relaxed);
+        // 鼠标跟随仅在呼出时重新选屏；后续搜索展开仍保留该屏上的当前锚点。
+        let follow_cursor = state.store.lock().map(|store| store.settings().window_placement == "cursor").unwrap_or(false);
+        let initial_position = follow_cursor || !state.window_position_initialized.load(Ordering::Relaxed);
         if apply_layout(&window, layout, 0, initial_position).is_ok() {
             state.window_position_initialized.store(true, Ordering::Relaxed);
         }

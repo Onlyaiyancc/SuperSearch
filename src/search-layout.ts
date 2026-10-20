@@ -28,15 +28,16 @@ export function menuPosition(anchor: { right: number; top: number; bottom: numbe
 
 export function createLayoutSync(send: (value: WindowLayout) => Promise<unknown>) {
   type Waiter = { resolve: () => void; reject: (value: unknown) => void };
-  let next: { value: WindowLayout; waiters: Waiter[] } | undefined;
+  let next: { value: WindowLayout; force: boolean; waiters: Waiter[] } | undefined;
   let running = false;
   let applied = '';
-  return (value: WindowLayout): Promise<void> => {
+  return (value: WindowLayout, force = false): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       if (next) {
         next.value = value;
+        next.force ||= force;
         next.waiters.push({ resolve, reject });
-      } else next = { value, waiters: [{ resolve, reject }] };
+      } else next = { value, force, waiters: [{ resolve, reject }] };
       if (running) return;
       running = true;
       // 串行发送尺寸，只保留等待中的最新布局，避免后到的旧请求覆盖新尺寸。
@@ -47,7 +48,8 @@ export function createLayoutSync(send: (value: WindowLayout) => Promise<unknown>
           const target = batch.value;
           const key = `${target.layout}:${target.rows}:${target.requestId ?? ''}`;
           try {
-            if (key !== applied) {
+            // DPI 变化后原生尺寸可能已改变，同一逻辑布局也必须重新发送。
+            if (batch.force || key !== applied) {
               await send(target);
               applied = key;
             }

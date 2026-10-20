@@ -195,6 +195,7 @@ kbd { padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; bac
 .theme-dark svg { color: #f3f4f6; background: #22262c; }
 .theme-system svg { color: #596473; background: #e4e8ee; }
 .settings-content select, textarea, .dialog input { width: 100%; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg); color: var(--text); }
+.settings-content .placement-setting select { width: 204px; max-width: 50%; min-height: 44px; padding: 9px 10px; flex-shrink: 0; font-size: 13px; }
 textarea, .dialog input { padding: 11px 12px; font-size: 13px; resize: vertical; }
 textarea { min-height: 76px; line-height: 1.65; }
 textarea::placeholder, .dialog input::placeholder { color: var(--muted); }
@@ -280,6 +281,8 @@ code { padding: 2px 4px; border-radius: 3px; background: var(--surface); font-si
   .shortcut-field { width: 128px; }
   .shortcut-setting .setting-row { align-items: stretch; flex-direction: column; }
   .shortcut-setting .shortcut-field { width: 100%; max-width: 100%; }
+  .placement-setting { align-items: stretch; flex-direction: column; }
+  .settings-content .placement-setting select { width: 100%; max-width: 100%; }
   .theme-options { gap: 8px; }
   .settings-footer .primary, .settings-footer .secondary { min-width: 76px; padding: 10px 12px; }
 }

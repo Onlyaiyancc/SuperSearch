@@ -133,8 +133,9 @@ impl EverythingClient {
         // 只读取已知状态；SDK 正在持锁检查时立即返回，首批应用结果不等待 IPC。
         if !self.shared.running.load(Ordering::Acquire) { return provider("unavailable", "File search worker is unavailable."); }
         match self.shared.mailbox.try_lock() {
+            Ok(mailbox) if mailbox.restart => provider("indexLoading", "Bundled file index is loading. First-time folder indexing may take several minutes."),
             Ok(mailbox) => mailbox.cached.clone(),
-            Err(std::sync::TryLockError::WouldBlock) => provider("unavailable", "File search status is being checked."),
+            Err(std::sync::TryLockError::WouldBlock) => provider("loading", "File search status is being checked."),
             Err(_) => provider("unavailable", "File search worker is unavailable."),
         }
     }
@@ -144,13 +145,19 @@ impl EverythingClient {
         let (tx, rx) = mpsc::sync_channel(1);
         let mut mailbox = match self.shared.mailbox.try_lock() {
             Ok(mailbox) => mailbox,
-            Err(std::sync::TryLockError::WouldBlock) => return provider("unavailable", "File search status is being checked."),
+            Err(std::sync::TryLockError::WouldBlock) => return provider("loading", "File search status is being checked."),
             Err(_) => return provider("unavailable", "File search worker is unavailable."),
         };
+        let was_loading = mailbox.restart || matches!(mailbox.cached.status.as_str(), "loading" | "indexLoading");
         if let Some(old) = mailbox.status.replace(tx) { let _ = old.send(mailbox.cached.clone()); }
         drop(mailbox);
         unsafe { SetEvent(self.shared.wake as *mut c_void); }
-        rx.recv_timeout(Duration::from_millis(250)).unwrap_or_else(|_| provider("unavailable", "File search status timed out."))
+        rx.recv_timeout(Duration::from_millis(250)).unwrap_or_else(|_| {
+            // 重启旧进程和加载数据库可能超过单次 IPC 期限；保留已知加载态，允许可见设置继续检查。
+            let known = self.cached_status();
+            if matches!(known.status.as_str(), "loading" | "indexLoading") || (was_loading && known.status == "ready") { known }
+            else { provider("unavailable", "File search status timed out.") }
+        })
     }
 }
 
@@ -231,7 +238,11 @@ fn worker(shared: Arc<Shared>, options: Option<EngineOptions>) {
         let mut recovery = RecoveryBudget::new(Instant::now());
         while !shared.stop.load(Ordering::Acquire) {
             let (restart, incoming, status_reply) = shared.mailbox.lock().ok().map(|mut mailbox| {
-                let restart = if mailbox.restart { mailbox.restart = false; mailbox.options.clone() } else { None };
+                let restart = if mailbox.restart {
+                    mailbox.restart = false;
+                    mailbox.cached = provider("indexLoading", "Bundled file index is loading. First-time folder indexing may take several minutes.");
+                    mailbox.options.clone()
+                } else { None };
                 (restart, mailbox.query.take(), mailbox.status.take())
             }).unwrap_or((None, None, None));
             let demanded = incoming.is_some() || status_reply.is_some();
@@ -248,6 +259,9 @@ fn worker(shared: Arc<Shared>, options: Option<EngineOptions>) {
                 if automatic { shared.mailbox.lock().ok().and_then(|mailbox| mailbox.options.clone()) } else { None }
             });
             if let Some(options) = restart {
+                if let Ok(mut mailbox) = shared.mailbox.lock() {
+                    mailbox.cached = provider("indexLoading", "Bundled file index is loading. First-time folder indexing may take several minutes.");
+                }
                 REPLIES.with(|slot| *slot.borrow_mut() = ReplySlot::default());
                 // 保留最新待发查询；旧活动查询失效，迟到回复不能进入重启后的快照。
                 if let Some(job) = active.take() { let _ = job.reply.send(Err("Bundled file search is restarting.".into())); }
@@ -489,6 +503,60 @@ fn next_reply_id(current: u32) -> Result<u32, String> {
 mod tests {
     use super::*;
     #[test]
+    fn manual_restart_status_timeout_preserves_loading_until_worker_replies() {
+        let client = EverythingClient { shared: Arc::new(Shared {
+            mailbox: Mutex::new(Mailbox { query: None, status: None, cached: provider("ready", "Everything is ready."), options: Some(EngineOptions::new("unused-status-fixture".into(), vec![])), restart: false, diagnostics: json!({"mode":"bundled"}) }),
+            stop: AtomicBool::new(false), running: AtomicBool::new(true), wake: 0,
+        }) };
+        client.retry(vec![]).unwrap();
+        let started = Instant::now();
+        let status = client.status();
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(status.status, "indexLoading");
+        assert!(client.shared.mailbox.lock().unwrap().restart);
+        // 模拟重试前的旧查询晚到：待处理重启必须覆盖过期的就绪快照。
+        client.shared.mailbox.lock().unwrap().cached = provider("ready", "Everything is ready.");
+        assert_eq!(client.cached_status().status, "indexLoading");
+    }
+
+    #[test]
+    fn channel_deadline_does_not_turn_a_loading_to_ready_transition_into_failure() {
+        let client = EverythingClient { shared: Arc::new(Shared {
+            mailbox: Mutex::new(Mailbox { query: None, status: None, cached: provider("indexLoading", "Bundled file index is loading."), options: None, restart: false, diagnostics: json!({}) }),
+            stop: AtomicBool::new(false), running: AtomicBool::new(true), wake: 0,
+        }) };
+        std::thread::scope(|scope| {
+            let shared = client.shared.clone();
+            scope.spawn(move || {
+                let deadline = Instant::now() + Duration::from_secs(1);
+                loop {
+                    {
+                        let mut mailbox = shared.mailbox.lock().unwrap();
+                        if let Some(reply) = mailbox.status.take() {
+                            mailbox.cached = provider("ready", "Everything is ready.");
+                            drop(reply);
+                            break;
+                        }
+                    }
+                    assert!(Instant::now() < deadline);
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+            });
+            assert_eq!(client.status().status, "ready");
+        });
+    }
+
+    #[test]
+    fn genuine_worker_failure_is_not_changed_into_loading_on_status_timeout() {
+        let client = EverythingClient { shared: Arc::new(Shared {
+            mailbox: Mutex::new(Mailbox { query: None, status: None, cached: provider("unavailable", "Unable to start bundled file search."), options: None, restart: false, diagnostics: json!({"mode":"external"}) }),
+            stop: AtomicBool::new(false), running: AtomicBool::new(true), wake: 0,
+        }) };
+        assert_eq!(client.status().status, "unavailable");
+        client.shared.running.store(false, Ordering::Release);
+        assert_eq!(client.status().status, "unavailable");
+    }
+    #[test]
     fn automatic_recovery_is_bounded_and_manual_retry_resets_the_budget() {
         let now = Instant::now();
         let mut budget = RecoveryBudget::new(now);
@@ -518,7 +586,7 @@ mod tests {
             assert!(mailbox.status.is_none());
             drop(mailbox);
             let status = result.expect("Status submission must not wait for the SDK mailbox");
-            assert_eq!(status.status, "unavailable");
+            assert_eq!(status.status, "loading");
             assert!(status.message.contains("being checked"));
         });
     }
@@ -585,7 +653,7 @@ mod tests {
             let result = rx.recv_timeout(Duration::from_secs(1));
             drop(mailbox);
             let status = result.expect("Cached status must not wait for an SDK status request");
-            assert_eq!(status.status, "unavailable");
+            assert_eq!(status.status, "loading");
             assert!(status.message.contains("being checked"));
         });
     }

@@ -3,6 +3,24 @@ import { emptySearchSession, searchLayout, createLayoutSync, menuPosition } from
 import { localizeMessage, providerMessage } from '../src/localization';
 
 describe('compact search lifecycle', () => {
+  it('reapplies identical layout after DPI change and retains forced updates queued behind an in-flight resize', async () => {
+    const sent: string[] = [];
+    let release!: () => void;
+    const sync = createLayoutSync(async value => {
+      sent.push(value.layout);
+      if (sent.length === 1) await new Promise<void>(resolve => { release = resolve; });
+    });
+    const compact = { layout: 'compact', rows: 0 } as const;
+    const first = sync(compact);
+    const forced = sync(compact, true);
+    release();
+    await Promise.all([first, forced]);
+    expect(sent).toEqual(['compact', 'compact']);
+    await sync(compact);
+    expect(sent).toHaveLength(2);
+    await sync(compact, true);
+    expect(sent).toHaveLength(3);
+  });
   it('resets every transient state and binds an empty snapshot to a new request', () => {
     const state = emptySearchSession('session-2');
     expect(state).toMatchObject({ query: '', scope: 'all', composing: false, compositionEndedAt: 0, selected: null, menu: null, notice: '', error: '', pending: false });

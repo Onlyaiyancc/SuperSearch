@@ -11,7 +11,7 @@ const previewProviders: Provider[] = [
 let previewSettings: Settings = {
   settingsVersion: 1, shortcut: 'Alt+Space', autostart: false, recordHistory: true,
   includeDesktop: true, hideHidden: true, hideSystem: true, includeDirectories: [],
-  excludeDirectories: [], everythingPath: null, autoStartEverything: false, theme: 'light',
+  excludeDirectories: [], everythingPath: null, autoStartEverything: false, theme: 'light', windowPlacement: 'remember',
 };
 const samples: ResultItem[] = [
   { entityId: 'sample-silver-design', title: '设计方案.fig', subtitle: 'D:\\预览样例\\工作\\品牌设计', kind: 'file', pinned: false },

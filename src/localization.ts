@@ -6,6 +6,7 @@ export function localizeMessage(value: unknown) {
   // 只转换系统反馈；结果名称、文件路径及诊断原文不经过此适配器。
   if (/^[\u3400-\u9fff]/u.test(raw.trim())) return raw;
   const patterns: [RegExp, string][] = [
+    [/file search status is being checked/i, '正在检查搜索引擎状态…'],
     [/fast indexing service stopped/i, '高速索引服务已停止，请重新启动搜索引擎以回退到目录扫描。'],
     [/NTFS\/USN.*active/i, 'NTFS/USN 高速索引已启用。'],
     [/NTFS\/USN.*loading/i, 'NTFS/USN 高速索引正在加载。'],

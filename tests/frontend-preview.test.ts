@@ -3,6 +3,17 @@ import { call, previewSnapshot } from '../src/bridge';
 import type { Settings } from '../src/types';
 
 describe('browser preview boundary', () => {
+  it('defaults to remembered placement and preserves a cursor choice through other edits', async () => {
+    const original = await call<Settings>('get_settings');
+    expect(original.windowPlacement).toBe('remember');
+    try {
+      await call('update_settings', { patch: { windowPlacement: 'cursor' } });
+      const saved = await call<Settings>('update_settings', { patch: { theme: 'dark' } });
+      expect(saved.windowPlacement).toBe('cursor');
+    } finally {
+      await call('update_settings', { patch: original });
+    }
+  });
   it('cannot execute a native action or choose an executable', async () => {
     await expect(call('execute_action', { action: 'open', resultId: 'sample-vscode' })).rejects.toThrow('需要桌面应用');
     await expect(call('add_app')).rejects.toThrow('需要桌面应用');
