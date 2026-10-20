@@ -32,6 +32,7 @@ pub struct AppState {
     pub shortcut_error: Mutex<Option<String>>,
     pub last_refresh: Mutex<Instant>,
     pub window_position_initialized: AtomicBool,
+    pub window_monitor: Mutex<crate::layout::MonitorMemory>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, String> {
@@ -63,6 +64,17 @@ pub fn invalidate(app: &AppHandle) {
     }
 }
 
+fn monitor_bounds(monitor: &tauri::Monitor) -> tauri::PhysicalRect<i32,u32> {
+    tauri::PhysicalRect { position: *monitor.position(), size: *monitor.size() }
+}
+
+pub fn remember_window_monitor(window: &tauri::Window) {
+    if window.label() != "main" { return; }
+    let (Some(state), Ok(Some(monitor)), Ok(monitors)) = (window.try_state::<AppState>(), window.current_monitor(), window.available_monitors()) else { return; };
+    let connected = monitors.iter().map(monitor_bounds).collect::<Vec<_>>();
+    if let Ok(mut memory) = state.window_monitor.lock() { memory.observe(monitor_bounds(&monitor), &connected); };
+}
+
 fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayout, rows: u32, initial_position: bool) -> Result<(), String> {
     let cursor_monitor = if initial_position {
         unsafe {
@@ -75,13 +87,19 @@ fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayo
     let monitor = cursor_monitor.or_else(|| window.current_monitor().ok().flatten()).or_else(|| window.primary_monitor().ok().flatten()).ok_or("No monitor is available")?;
     let scale = monitor.scale_factor();
     let work = monitor.work_area();
-    let anchor = if initial_position { None } else { window.outer_position().ok() };
+    let state = window.state::<AppState>();
+    let connected = window.available_monitors().map_err(|e| e.to_string())?.iter().map(monitor_bounds).collect::<Vec<_>>();
+    if connected.is_empty() { return Err("No monitor is available".into()); }
+    let position = window.outer_position().ok();
+    let anchor = if initial_position { None } else { lock(&state.window_monitor)?.anchor(&connected, position) };
     let geometry = crate::layout::fit(layout, rows, work, scale, anchor);
     // 物理尺寸按目标屏幕 DPI 计算，跨屏移动时不依赖尚未更新的旧窗口 DPI。
     window.set_position(geometry.position).map_err(|e| e.to_string())?;
     window.set_min_size(Some(tauri::PhysicalSize::new((360.0*scale).round().min(work.size.width as f64) as u32, (76.0*scale).round().min(work.size.height as f64) as u32))).map_err(|e| e.to_string())?;
     window.set_size(geometry.size).map_err(|e| e.to_string())?;
-    window.set_position(geometry.position).map_err(|e| e.to_string())
+    window.set_position(geometry.position).map_err(|e| e.to_string())?;
+    lock(&state.window_monitor)?.placed(monitor_bounds(&monitor));
+    Ok(())
 }
 
 fn may_expand(cache: &SearchCache) -> bool {

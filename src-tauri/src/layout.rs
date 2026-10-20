@@ -10,6 +10,25 @@ pub struct Geometry {
     pub position: PhysicalPosition<i32>,
 }
 
+#[derive(Default)]
+pub struct MonitorMemory { monitor: Option<PhysicalRect<i32,u32>> }
+
+impl MonitorMemory {
+    fn disconnected(&self, connected: &[PhysicalRect<i32,u32>]) -> bool {
+        !connected.is_empty() && self.monitor.as_ref().is_some_and(|previous| {
+            !connected.iter().any(|monitor| monitor.position == previous.position && monitor.size == previous.size)
+        })
+    }
+    pub fn anchor(&self, connected: &[PhysicalRect<i32,u32>], position: Option<PhysicalPosition<i32>>) -> Option<PhysicalPosition<i32>> {
+        if self.disconnected(connected) { None } else { position }
+    }
+    pub fn observe(&mut self, monitor: PhysicalRect<i32,u32>, connected: &[PhysicalRect<i32,u32>]) {
+        // 旧屏消失后保留失效标记，不能把 Windows 自动搬移当成用户重新选择位置。
+        if !connected.is_empty() && !self.disconnected(connected) { self.placed(monitor); }
+    }
+    pub fn placed(&mut self, monitor: PhysicalRect<i32,u32>) { self.monitor = Some(monitor); }
+}
+
 pub fn fit(layout: WindowLayout, rows: u32, work: &PhysicalRect<i32, u32>, scale: f64, anchor: Option<PhysicalPosition<i32>>) -> Geometry {
     let height = match layout {
         WindowLayout::Compact => 76.0,
@@ -34,6 +53,39 @@ pub fn fit(layout: WindowLayout, rows: u32, work: &PhysicalRect<i32, u32>, scale
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn primary() -> PhysicalRect<i32,u32> { PhysicalRect { position: PhysicalPosition::new(0,0), size: PhysicalSize::new(1920,1080) } }
+    #[test]
+    fn disconnected_monitor_centers_even_after_windows_moves_the_window_to_a_corner() {
+        let mut memory = MonitorMemory::default();
+        memory.observe(work(), &[work(),primary()]);
+        // Windows 可能先把窗口搬到主屏左上角；该移动不能冒充用户的新位置。
+        memory.observe(primary(), &[primary()]);
+        for position in [PhysicalPosition::new(-1500,250), PhysicalPosition::new(0,0)] {
+            let anchor = memory.anchor(&[primary()], Some(position));
+            assert_eq!(fit(WindowLayout::Compact,0,&primary(),1.0,anchor).position,PhysicalPosition::new(620,502));
+        }
+        memory.placed(primary());
+        let moved = PhysicalPosition::new(350,275);
+        assert_eq!(memory.anchor(&[primary()],Some(moved)),Some(moved));
+    }
+    #[test]
+    fn ordinary_cross_display_dragging_updates_the_remembered_monitor() {
+        let mut memory = MonitorMemory::default();
+        memory.observe(primary(), &[work(),primary()]);
+        memory.observe(work(), &[work(),primary()]);
+        let moved = PhysicalPosition::new(-1500,250);
+        assert_eq!(memory.anchor(&[work(),primary()],Some(moved)),Some(moved));
+        assert_eq!(memory.anchor(&[primary()],Some(PhysicalPosition::new(0,0))),None);
+    }
+    #[test]
+    fn removing_an_unrelated_display_preserves_a_valid_remembered_corner() {
+        let mut memory = MonitorMemory::default();
+        memory.observe(primary(), &[work(),primary()]);
+        let corner = PhysicalPosition::new(0,0);
+        assert_eq!(memory.anchor(&[primary()],Some(corner)),Some(corner));
+        // 拓扑查询暂时为空时不破坏记忆，稍后可重试。
+        assert_eq!(memory.anchor(&[],Some(corner)),Some(corner));
+    }
     #[test]
     fn unplugging_a_small_monitor_restores_canonical_width() {
         let small = PhysicalRect { position: PhysicalPosition::new(0,0), size: PhysicalSize::new(440,800) };

@@ -23,3 +23,7 @@ The replacement keeps in-progress engine status through the worker's 250ms reply
 Read-only code review found an additional SDK-timeout path; it was fixed and re-reviewed with no remaining blockers. Regression tests cover timeout grace expiry, readiness ending grace, genuine failure visibility, geometry, forced layout synchronization, and setting persistence/default compatibility.
 
 The local browser preview's accessibility tree verified the visible Chinese label, both placement options, keyboard selection, saving and persistence after reopening settings. Screenshot capture failed through both documented browser capture APIs, so this is semantic interaction evidence, not completed visual screenshot QA. Physical display unplugging, mixed-DPI recall and mouse-monitor placement still require a physical recheck. Existing 30-minute measurements apply only to the original candidate binary.
+
+## Candidate 2 user recheck
+
+The user reported A (engine restart) and C (mouse-monitor recall setting) passed. B now has normal dimensions, but remembered positioning leaves the recalled window stuck at the upper-left of the primary display after the secondary display is unplugged. This is user-reported physical evidence; the exact running hash was not independently reconfirmed. Complete the disconnected-display position fallback and request a B-only recheck on candidate 3. Keep the prior candidate and evidence; no public release yet.

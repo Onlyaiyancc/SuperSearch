@@ -73,7 +73,7 @@ fn main() {
                 engine_options.force_folders = true;
             }
             let everything=everything::EverythingClient::managed(engine_options);
-            app.manage(service::AppState {store:Mutex::new(store),cache:Mutex::new(service::SearchCache::default()),everything,refreshing:AtomicBool::new(false),apps_error:Mutex::new(None),shortcut_error:Mutex::new(shortcut_error),last_refresh:Mutex::new(Instant::now()),window_position_initialized:AtomicBool::new(false)});
+            app.manage(service::AppState {store:Mutex::new(store),cache:Mutex::new(service::SearchCache::default()),everything,refreshing:AtomicBool::new(false),apps_error:Mutex::new(None),shortcut_error:Mutex::new(shortcut_error),last_refresh:Mutex::new(Instant::now()),window_position_initialized:AtomicBool::new(false),window_monitor:Mutex::new(layout::MonitorMemory::default())});
             if let Some(state) = benchmark_state { app.manage(state); }
             let open=MenuItem::with_id(app,"open","打开搜索",true,None::<&str>)?;
             let settings_item=MenuItem::with_id(app,"settings","设置",true,None::<&str>)?;
@@ -100,6 +100,7 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window,event| {
+            if let tauri::WindowEvent::Moved(_) = event { service::remember_window_monitor(window); }
             if let tauri::WindowEvent::ScaleFactorChanged { .. } = event {
                 // DPI 变化可使系统重写物理尺寸，让前端按当前面板强制重发一次布局。
                 let _=tauri::Emitter::emit(window,"window_scale_changed",());
