@@ -2,13 +2,13 @@
 
 面向 Windows 的应用启动与文件名称搜索工具，基于 Tauri 2、Rust、Svelte 5 和 Everything SDK。简体中文界面，支持拼音匹配、快捷键呼出、文件搜索与本地使用历史排序。
 
-当前源码 **0.1.7，正式版候选，尚未公开发布，未签名**。已公开的测试版为 [v0.1.6-beta.2](https://github.com/Onlyaiyancc/SuperSearch/releases/tag/v0.1.6-beta.2)。仅支持 Windows x64，需要 WebView2 Runtime。
+当前正式版为 **[v0.1.7](https://github.com/Onlyaiyancc/SuperSearch/releases/tag/v0.1.7)，未签名**。仅支持 Windows x64，需要 WebView2 Runtime。
 
 ![搜索界面：合成样例数据](docs/images/search-preview.png)
 
 ## 下载与使用
 
-公开安装包和便携 ZIP 位于 [GitHub Releases](https://github.com/Onlyaiyancc/SuperSearch/releases)。候选版本的验收完成前，请使用已发布的 beta 或按[开发文档](docs/development.md)从源码构建。下载后可用随版本提供的 SHA256SUMS.txt 校验文件；未签名程序可能触发 Windows SmartScreen 提示。
+公开安装包和便携 ZIP 位于 [最新正式版](https://github.com/Onlyaiyancc/SuperSearch/releases/latest)。下载后可用随版本提供的 SHA256SUMS.txt 校验文件；未签名程序可能触发 Windows SmartScreen 提示。
 
 - 默认 **Alt＋Space** 呼出，**Ctrl＋,** 打开设置。
 - 输入名称或拼音查找应用、文件及文件夹，方向键选择，Enter 打开，Tab 补全。
@@ -24,7 +24,7 @@
 
 普通运行默认不发送遥测。使用历史和设置保存在本机，可在设置中关闭历史记录或清除数据。主动触发网页搜索时，查询会交给默认浏览器和必应。
 
-浏览器预览和本页截图使用合成样例，不执行本地搜索或启动操作。beta.2 的输入法、双屏、安装生命周期和 30 分钟诊断证据见其发布附件；这些记录不替代 0.1.7 候选验收。屏幕热插拔、睡眠唤醒、真实 150%/200% 缩放及缺少 WebView2 的安装仍需验证。短时测试不能证明长期资源表现。
+浏览器预览和本页截图使用合成样例，不执行本地搜索或启动操作。v0.1.7 的构建、安装升级、卸载共存及缺少 WebView2 后的联网恢复已在临时 Windows 环境验证，详见发布附件 Release-Acceptance.md。维护者已反馈本地候选版的输入法、快捷键、睡眠唤醒、屏幕热插拔与 UAC 正常；这些交互记录未独立核对运行文件哈希。真实 150%/200% 缩放仍未单独验证，云端 Server 2025 验收不覆盖所有 Windows 10/11 组合。当前正式包仅有短时资源诊断；旧版 30 分钟记录不替代其长期测试。
 
 ![设置界面：浏览器样例](docs/images/settings-preview.png)
 
