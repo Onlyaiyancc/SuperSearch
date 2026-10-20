@@ -27,3 +27,7 @@ The local browser preview's accessibility tree verified the visible Chinese labe
 ## Candidate 2 user recheck
 
 The user reported A (engine restart) and C (mouse-monitor recall setting) passed. B now has normal dimensions, but remembered positioning leaves the recalled window stuck at the upper-left of the primary display after the secondary display is unplugged. This is user-reported physical evidence; the exact running hash was not independently reconfirmed. Complete the disconnected-display position fallback and request a B-only recheck on candidate 3. Keep the prior candidate and evidence; no public release yet.
+
+## Candidate 3 user recheck and remaining installation case
+
+The user reported B normal after the candidate 3 correction, and subsequently reported the interactive UAC/normal installation checks normal. Exact running hashes were not independently reconfirmed. They have no virtual machine and do not want to restart their computer. Do not enable Windows Sandbox or change the host WebView2 installation. Prepare missing-runtime/download-failure/retry acceptance on a disposable hosted Windows runner. Silent elevated automation does not establish dialog wording or replace their UAC interaction report.
