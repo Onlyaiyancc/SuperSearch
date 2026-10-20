@@ -1,4 +1,4 @@
-name: Feature request / 功能建议
+name: Feature request
 description: Explain a user problem and the desired behavior.
 body:
   - type: textarea

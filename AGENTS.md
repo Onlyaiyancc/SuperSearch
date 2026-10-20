@@ -1,6 +1,6 @@
 # SuperSearch Agent Guide
 
-Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.7, stable release candidate; not publicly released.
+Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.7, publicly released stable version; unsigned.
 
 ## Command sequences
 

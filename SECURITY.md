@@ -1,6 +1,6 @@
 # Security policy
 
-SuperSearch is an early Windows desktop application. Security fixes target the latest published Pre-release; older builds may require an upgrade.
+SuperSearch is a Windows desktop application. Security fixes target the latest published stable release, currently [v0.1.7](https://github.com/Onlyaiyancc/SuperSearch/releases/tag/v0.1.7). Older stable builds and pre-releases may require an upgrade.
 
 ## Reporting a vulnerability
 
