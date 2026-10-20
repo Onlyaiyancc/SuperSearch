@@ -68,9 +68,14 @@ function Assert-InstalledPayload {
     $taskActual=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
     $taskReport.installedExecutableSha256=$taskActual
     if ($taskActual -ne $taskExpectedExe) { throw 'Installed executable differs from the verified installer payload.' }
+    Assert-AppVersion $taskExe $taskVersion
     foreach($taskPair in @(@('licenses/LICENSE.txt','LICENSE'),@('licenses/THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md'),@('licenses/THIRD-PARTY-LICENSES.txt','THIRD-PARTY-LICENSES.txt'),@('engine/License.txt','Everything-License.txt'))) {
         if ((Get-FileHash -LiteralPath (Join-Path $taskInstall $taskPair[0]) -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $taskOutput ('portable/'+$taskPair[1])) -Algorithm SHA256).Hash) { throw 'Installed license resource differs from candidate notices.' }
     }
+}
+function Assert-AppVersion($File, $Expected) {
+    $taskActualVersion=(Get-Item -LiteralPath $File).VersionInfo
+    if ($taskActualVersion.ProductVersion -ne $Expected -or [version]$taskActualVersion.FileVersion -ne [version]$Expected) { throw 'Executable version differs from the expected source version.' }
 }
 function Uninstall-Candidate {
     $taskUninstaller = Join-Path $taskInstall 'uninstall.exe'
@@ -81,13 +86,21 @@ function Uninstall-Candidate {
 try {
     $taskRun = gh api "repos/$taskRepo/actions/runs/$CandidateRun" | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0 -or $taskRun.head_sha -ne $CandidateSha -or $taskRun.head_branch -ne 'main' -or $taskRun.event -ne 'push' -or $taskRun.conclusion -ne 'success' -or $taskRun.workflow_id -ne 388914064) { throw 'Candidate is not a successful main Windows build.' }
+    $taskSource = gh api "repos/$taskRepo/contents/package.json?ref=$CandidateSha" | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read exact candidate source version.' }
+    $taskVersion=([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($taskSource.content)) | ConvertFrom-Json).version
+    $taskShape=node scripts/release-policy.mjs candidate $taskVersion '0.1.6' | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'Candidate is not a cross-version upgrade.' }
+    $taskReport.candidateVersion=$taskVersion
+    $taskReport.baselineVersion='0.1.6'
     gh run download $CandidateRun --repo $taskRepo --name windows-release --dir (Join-Path $taskOutput 'candidate')
     if ($LASTEXITCODE -ne 0) { throw 'Candidate download failed.' }
     $taskCandidate = Join-Path $taskOutput 'candidate'
     $taskNames = @()
     foreach ($taskLine in Get-Content (Join-Path $taskCandidate 'SHA256SUMS.txt')) {
-        if ($taskLine -notmatch '^([a-f0-9]{64})  (SuperSearch_0\.1\.6_x64-setup\.exe|SuperSearch-portable-x64\.zip)$') { throw 'Unexpected candidate checksum entry.' }
+        if ($taskLine -notmatch '^([a-f0-9]{64})  ([A-Za-z0-9._-]+)$') { throw 'Unexpected candidate checksum entry.' }
         $taskExpected=$Matches[1]; $taskName=$Matches[2]; $taskNames += $taskName
+        if ($taskName -cnotin @($taskShape.installer,'SuperSearch-portable-x64.zip')) { throw 'Unexpected candidate asset name.' }
         if ((Get-FileHash -LiteralPath (Join-Path $taskCandidate $taskName) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskExpected) { throw 'Candidate hash mismatch.' }
     }
     if ($taskNames.Count -ne 2 -or @($taskNames | Select-Object -Unique).Count -ne 2) { throw 'Candidate manifest incomplete.' }
@@ -96,7 +109,9 @@ try {
     $taskBaseline = Join-Path $taskOutput 'baseline/SuperSearch_0.1.6_x64-setup.exe'
     if ((Get-FileHash -LiteralPath $taskBaseline -Algorithm SHA256).Hash.ToLowerInvariant() -ne '7f6f65e0c05423c27808cfbc7d57ceb86931fac32031fe365ea4a24a0e6bb965') { throw 'Baseline hash mismatch.' }
     Expand-Archive -LiteralPath (Join-Path $taskCandidate 'SuperSearch-portable-x64.zip') -DestinationPath (Join-Path $taskOutput 'portable')
-    $taskSetup = Join-Path $taskCandidate 'SuperSearch_0.1.6_x64-setup.exe'
+    $taskSetup = Join-Path $taskCandidate $taskShape.installer
+    Assert-AppVersion $taskSetup $taskVersion
+    Assert-AppVersion (Join-Path $taskOutput 'portable/SuperSearch.exe') $taskVersion
     # NSIS 打包可修改 bundle 类型标记；应和安装包自身的载荷比对。
     $taskSevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
     & $taskSevenZip x -y ('-o'+(Join-Path $taskOutput 'installer-payload')) $taskSetup | Out-Null
@@ -110,6 +125,7 @@ try {
     $taskReport.phase='baseline-install'
     Invoke-Checked $taskBaseline @('/S')
     Assert-DedicatedService
+    Assert-AppVersion $taskExe '0.1.6'
     Test-InstalledApp
     $taskReport.baselineInstalledExecutableSha256=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
     & node scripts/native-installation-store.mjs seed
