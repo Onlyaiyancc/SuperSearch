@@ -1,6 +1,6 @@
 # SuperSearch Agent Guide
 
-Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.7, publicly released stable version; unsigned.
+Windows desktop search launcher (Tauri2 + Rust + Svelte5 + Everything SDK). Version 0.1.8; unsigned.
 
 ## Command sequences
 
@@ -70,7 +70,7 @@ Keep only conventional project source/configuration, documentation, dependencies
 - **Dual-layer search**: Everything SDK for NTFS fast indexing (MFT/USN journal) with fallback to directory scanning for non-NTFS volumes or missing service.
 - **Separate service**: Machine-wide NSIS installer registers the dedicated service with SCM name `Everything (SuperSearch)` to avoid conflicts with personal Everything installations. User-mode client auto-uses its private pipe via IPC. Do not query the nonexistent alias `supersearch-everything-service`.
 - **Chinese UI**: All user-facing text in Simplified Chinese (localization.ts), including tray menu, settings, error messages.
-- **Window behavior**: Compact 680×76 default, no decorations, always-on-top, transparent. Expands to show results (172 + 76×rows, max 6 rows = 628px), settings 620px; bounded by monitor work area. Default hotkey Alt+Space; configurable via settings. Single-instance enforced (except `--ui-benchmark` mode).
+- **Window behavior**: Compact 680×76 default, no decorations, always-on-top, transparent. Expands to show results (172 + 76×rows, max 6 rows = 628px), settings 620px; preserve the current visual center through resizing, bounded by monitor work area. Default hotkey Alt+Space; configurable via settings. Single-instance enforced (except `--ui-benchmark` mode).
 - **Recovery and query concurrency**: Owned engine exit/service loss/restoration triggers bounded recovery on query/status demand (2 per 30s); forced diagnostic directory mode is preserved. No idle polling. Provider status IPC runs in a blocking task behind an async command. Check generation and submit under cache lock; wait for every IPC reply outside cache/store locks. Publish main file results before optional bounded supplements.
 - **Application matching cache**: Shared FIFO cache holds at most 512 normalized titles and their pinyin/initial/acronym keys; titles over 512 UTF-8 bytes are excluded. Queries, launch paths, aliases and history are not cached. Aliases are evaluated live; title changes naturally change the content key. History-first ranking remains the product policy.
 - **Launch modes**: Applications via pinyin/fuzzy match against registry/Start Menu, files/folders via Everything SDK. Bing web fallback when no local matches.

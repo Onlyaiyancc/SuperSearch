@@ -19,7 +19,7 @@ Automated tests, isolated smoke diagnostics and artifact checks do not replace p
 
 Before a new beta, cover first-index status, IME, shortcuts/single instance, fresh install and upgrade. Disclose remaining gaps in release notes. Do not present older-build results as acceptance of a new build.
 
-Stable candidates must demonstrate upgrades across different internal versions. The v0.1.7 baseline is the public 0.1.6 beta.1 installer and its known hash. Installer, portable executable and installed executable versions must match the candidate source. Cold-index reports retain `initialIndex` observations and failures; resource reports identify the candidate executable hash. The maintainer decides whether the remaining gaps are acceptable before publication; preparation does not establish all-scenario acceptance.
+Stable candidates must demonstrate upgrades across different internal versions. The v0.1.8 baseline is the public v0.1.7 installer and its known hash. Installer, portable executable and installed executable versions must match the candidate source. Cold-index reports retain `initialIndex` observations and failures; resource reports identify the candidate executable hash. The maintainer decides whether the remaining gaps are acceptable before publication; preparation does not establish all-scenario acceptance.
 
 ## Automated installation lifecycle
 

@@ -188,6 +188,15 @@ pub fn open_web_search(raw: &str) -> Result<(), String> {
     if result.0 as isize <= 32 { Err("Unable to open the browser.".into()) } else { Ok(()) }
 }
 
+pub fn open_qr_url(raw: &str) -> Result<(), String> {
+    let url = crate::qr_scan::web_url(raw).ok_or("QR invalid web URL")?;
+    let _apartment = Apartment::new()?;
+    let target = wide(url.as_str());
+    // 只将经过校验的 HTTP/HTTPS 地址作为独立 Shell 目标，不拼接命令行。
+    let result = unsafe { ShellExecuteW(None, w!("open"), PCWSTR(target.as_ptr()), None, None, SW_SHOWNORMAL) };
+    if result.0 as isize <= 32 { Err("Unable to open the browser.".into()) } else { Ok(()) }
+}
+
 pub fn reveal_entry(entry: &Entry) -> Result<(), String> {
     let path = existing_path(entry)?;
     let _apartment = Apartment::new()?;
@@ -203,7 +212,11 @@ pub fn reveal_entry(entry: &Entry) -> Result<(), String> {
 
 pub fn copy_path(entry: &Entry) -> Result<(), String> {
     let path = existing_path(entry)?;
-    let text = wide(path);
+    copy_text(path)
+}
+
+pub fn copy_text(value: &str) -> Result<(), String> {
+    let text = wide(value);
     unsafe {
         // EmptyClipboard 后必须保留有效窗口所有者，否则 SetClipboardData 会失败。
         let owner = CreateWindowExW(WINDOW_EX_STYLE(0), w!("STATIC"), w!("SuperSearch Clipboard"), WINDOW_STYLE(0),
@@ -216,7 +229,7 @@ pub fn copy_path(entry: &Entry) -> Result<(), String> {
             ptr::copy_nonoverlapping(text.as_ptr(), target.cast::<u16>(), text.len());
             let _ = GlobalUnlock(memory);
             if EmptyClipboard().is_err() { let _ = GlobalFree(Some(memory)); return Err("Clipboard is unavailable.".into()); }
-            if SetClipboardData(13, Some(HANDLE(memory.0))).is_err() { let _ = GlobalFree(Some(memory)); return Err("Unable to copy this path.".into()); }
+            if SetClipboardData(13, Some(HANDLE(memory.0))).is_err() { let _ = GlobalFree(Some(memory)); return Err("Unable to copy clipboard text.".into()); }
             // 成功后由系统接管 HGLOBAL，不能再次释放。
             Ok(())
         })();

@@ -3,6 +3,20 @@ import { call, previewSnapshot } from '../src/bridge';
 import type { Settings } from '../src/types';
 
 describe('browser preview boundary', () => {
+  it('requires opt-in and labels translation samples without native side effects', async () => {
+    const original = await call<Settings>('get_settings');
+    try {
+      await call('update_settings', { patch: { translationEnabled: false } });
+      await expect(call('lookup_translation', { mode: 'translate', text: 'hello', direction: 'en-zh' })).rejects.toThrow('disabled');
+      await expect(call('copy_translation', { text: 'hello' })).rejects.toThrow('disabled');
+      await call('update_settings', { patch: { translationEnabled: true } });
+      const result = await call<{ text: string }>('lookup_translation', { mode: 'translate', text: 'hello', direction: 'en-zh' });
+      expect(result.text).toContain('预览样例');
+      await expect(call('copy_translation', { text: result.text })).resolves.toBeUndefined();
+    } finally {
+      await call('update_settings', { patch: original });
+    }
+  });
   it('defaults to remembered placement and preserves a cursor choice through other edits', async () => {
     const original = await call<Settings>('get_settings');
     expect(original.windowPlacement).toBe('remember');

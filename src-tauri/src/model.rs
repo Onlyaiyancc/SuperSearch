@@ -78,6 +78,12 @@ pub struct Settings {
     pub auto_start_everything: bool,
     pub theme: String,
     pub window_placement: String,
+    pub translation_enabled: bool,
+    pub file_preview_enabled: bool,
+    pub reminders_enabled: bool,
+    pub conversion_enabled: bool,
+    pub qr_scan_enabled: bool,
+    pub qr_scan_shortcut: String,
 }
 
 impl Default for Settings {
@@ -96,6 +102,12 @@ impl Default for Settings {
             auto_start_everything: false,
             theme: "light".into(),
             window_placement: "remember".into(),
+            translation_enabled: false,
+            file_preview_enabled: false,
+            reminders_enabled: false,
+            conversion_enabled: false,
+            qr_scan_enabled: false,
+            qr_scan_shortcut: String::new(),
         }
     }
 }
@@ -115,7 +127,17 @@ mod tests {
         let value: Settings = serde_json::from_str(r#"{"windowPlacement":"cursor"}"#).unwrap();
         assert_eq!(serde_json::to_value(value).unwrap()["windowPlacement"], "cursor");
         let old: Settings = serde_json::from_str("{}").unwrap();
+        assert!(!old.translation_enabled);
+        assert!(!old.conversion_enabled);
         assert_eq!(serde_json::to_value(old).unwrap()["windowPlacement"], "remember");
+    }
+    #[test]
+    fn conversion_is_opt_in_and_survives_unrelated_settings_roundtrip() {
+        let settings: Settings = serde_json::from_str(r#"{"conversionEnabled":true,"theme":"dark","filePreviewEnabled":true}"#).unwrap();
+        let restored: Settings = serde_json::from_value(serde_json::to_value(settings).unwrap()).unwrap();
+        assert!(restored.conversion_enabled && restored.file_preview_enabled);
+        assert_eq!(restored.theme, "dark");
+        assert!(!restored.reminders_enabled);
     }
     #[test]
     fn settings_default_to_private_opt_in_startup() {

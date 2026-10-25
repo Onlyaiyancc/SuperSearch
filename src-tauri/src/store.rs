@@ -1,4 +1,5 @@
 use crate::model::{Entry, Settings, UsageStat};
+use crate::reminders::{validate_input, Reminder};
 use rusqlite::{params, Connection};
 use std::{
     collections::{HashMap, HashSet},
@@ -46,6 +47,12 @@ impl Store {
                 PRAGMA user_version=1;").map_err(db_error)?;
             tx.commit().map_err(db_error)?;
         }
+        // 新功能使用兼容的增量表，旧版应用仍可读取既有设置和索引。
+        conn.execute_batch("CREATE TABLE IF NOT EXISTS reminders(
+            id TEXT PRIMARY KEY, title TEXT NOT NULL, due_at INTEGER NOT NULL,
+            completed INTEGER NOT NULL DEFAULT 0, notification_error INTEGER NOT NULL DEFAULT 0
+        ); CREATE INDEX IF NOT EXISTS reminders_due ON reminders(completed,due_at);")
+            .map_err(db_error)?;
         let primary = directory.join("config.json");
         let backup = directory.join("config.json.bak");
         let settings = if primary.exists() || backup.exists() {
@@ -68,6 +75,74 @@ impl Store {
 
     pub fn settings(&self) -> Settings {
         self.settings.clone()
+    }
+
+    pub fn create_reminder(&mut self, seconds: u64, title: &str, now: u64) -> Result<Reminder, String> {
+        self.require_reminders_enabled()?;
+        let title = validate_input(seconds, title)?;
+        let due_at = now.checked_add(seconds * 1000).filter(|due| *due <= i64::MAX as u64)
+            .ok_or("Reminder deadline is invalid")?;
+        let tx = self.conn.transaction().map_err(db_error)?;
+        let pending: i64 = tx.query_row("SELECT count(*) FROM reminders WHERE completed=0", [], |row| row.get(0)).map_err(db_error)?;
+        if pending >= 20 { return Err("At most 20 reminders may be pending".into()); }
+        let id: String = tx.query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0)).map_err(db_error)?;
+        tx.execute("INSERT INTO reminders(id,title,due_at) VALUES(?1,?2,?3)", params![id, title, due_at as i64]).map_err(db_error)?;
+        tx.commit().map_err(db_error)?;
+        Ok(Reminder { id, title, due_at, completed: false, notification_error: false })
+    }
+
+    pub fn require_reminders_enabled(&self) -> Result<(), String> {
+        if self.settings.reminders_enabled { Ok(()) } else { Err("Reminders plugin is disabled".into()) }
+    }
+
+    pub fn reminder_list(&self) -> Result<Vec<Reminder>, String> {
+        let mut stmt = self.conn.prepare("SELECT id,title,due_at,completed,notification_error FROM reminders ORDER BY completed,due_at,id").map_err(db_error)?;
+        let rows = stmt.query_map([], |row| Ok(Reminder {
+            id: row.get(0)?, title: row.get(1)?, due_at: row.get(2)?,
+            completed: row.get(3)?, notification_error: row.get(4)?,
+        })).map_err(db_error)?;
+        rows.map(|row| row.map_err(db_error)).collect()
+    }
+
+    pub fn cancel_reminder(&mut self, id: &str) -> Result<(), String> {
+        self.require_reminders_enabled()?;
+        if id.len() != 32 || !id.bytes().all(|c| c.is_ascii_hexdigit()) { return Err("Invalid reminder identifier".into()); }
+        self.conn.execute("DELETE FROM reminders WHERE id=?1", [id]).map_err(db_error)?;
+        Ok(())
+    }
+
+    pub fn disable_pending_reminders(&mut self) -> Result<(), String> {
+        self.conn.execute("DELETE FROM reminders WHERE completed=0", []).map_err(db_error)?;
+        Ok(())
+    }
+
+    pub fn next_reminder_due(&self) -> Result<Option<u64>, String> {
+        if !self.settings.reminders_enabled { return Ok(None); }
+        self.conn.query_row("SELECT min(due_at) FROM reminders WHERE completed=0", [], |row| row.get(0)).map_err(db_error)
+    }
+
+    pub fn claim_due_reminders(&mut self, now: u64) -> Result<Vec<Reminder>, String> {
+        if !self.settings.reminders_enabled { return Ok(vec![]); }
+        let tx = self.conn.transaction().map_err(db_error)?;
+        let due = {
+            let mut stmt = tx.prepare("SELECT id,title,due_at FROM reminders WHERE completed=0 AND due_at<=?1 ORDER BY due_at,id LIMIT 20").map_err(db_error)?;
+            let rows = stmt.query_map([now.min(i64::MAX as u64) as i64], |row| Ok(Reminder {
+                id: row.get(0)?, title: row.get(1)?, due_at: row.get(2)?, completed: true, notification_error: false,
+            })).map_err(db_error)?;
+            rows.map(|row| row.map_err(db_error)).collect::<Result<Vec<_>, _>>()?
+        };
+        // 在发通知前持久化领取状态，崩溃后不重复投递；仅保留最近 20 个完成项。
+        for reminder in &due {
+            tx.execute("UPDATE reminders SET completed=1 WHERE id=?1 AND completed=0", [&reminder.id]).map_err(db_error)?;
+        }
+        tx.execute("DELETE FROM reminders WHERE completed=1 AND id NOT IN (SELECT id FROM reminders WHERE completed=1 ORDER BY due_at DESC,rowid DESC LIMIT 20)", []).map_err(db_error)?;
+        tx.commit().map_err(db_error)?;
+        Ok(due)
+    }
+
+    pub fn reminder_notification_failed(&mut self, id: &str) -> Result<(), String> {
+        self.conn.execute("UPDATE reminders SET notification_error=1 WHERE id=?1 AND completed=1", [id]).map_err(db_error)?;
+        Ok(())
     }
 
     pub fn preview_settings(
@@ -444,6 +519,7 @@ fn validate_settings(settings: &Settings) -> Result<(), String> {
     {
         return Err("Invalid shortcut".into());
     }
+    crate::qr_scan::validate_shortcuts(&settings.shortcut, &settings.qr_scan_shortcut)?;
     for dirs in [&settings.include_directories, &settings.exclude_directories] {
         if dirs.len() > 32 {
             return Err("Too many directory filters".into());
@@ -513,6 +589,117 @@ fn atomic_replace(source: &Path, target: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reminders_table_is_added_to_existing_version_one_database() {
+        let f = Fixture::new();
+        let s = Store::new(&f.0).unwrap();
+        s.conn.execute("DROP TABLE IF EXISTS reminders", []).unwrap();
+        drop(s);
+        let reopened = Store::new(&f.0).unwrap();
+        let tables: i64 = reopened.conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='reminders'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(tables, 1);
+        let version: i64 = reopened.conn.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
+        assert_eq!(version, 1);
+    }
+    fn enabled_reminder_store(f: &Fixture) -> Store {
+        let mut store = Store::new(&f.0).unwrap();
+        store.save_settings(store.settings().settings_version, serde_json::json!({"remindersEnabled":true})).unwrap();
+        store
+    }
+    #[test]
+    fn reminders_persist_cancel_and_claim_due_exactly_once() {
+        let f = Fixture::new();
+        let mut store = enabled_reminder_store(&f);
+        let cancelled = store.create_reminder(1, "取消", 10_000).unwrap();
+        let due = store.create_reminder(2, "休息", 10_000).unwrap();
+        let future = store.create_reminder(3, "喝水", 10_000).unwrap();
+        store.cancel_reminder(&cancelled.id).unwrap();
+        drop(store);
+        let mut store = Store::new(&f.0).unwrap();
+        assert_eq!(store.reminder_list().unwrap().len(), 2);
+        assert!(store.claim_due_reminders(11_999).unwrap().is_empty());
+        let claimed = store.claim_due_reminders(12_000).unwrap();
+        assert_eq!(claimed.len(), 1);
+        assert_eq!(claimed[0].id, due.id);
+        assert!(claimed[0].completed);
+        store.reminder_notification_failed(&due.id).unwrap();
+        drop(store);
+        let mut store = Store::new(&f.0).unwrap();
+        assert!(store.claim_due_reminders(12_000).unwrap().is_empty());
+        assert_eq!(store.next_reminder_due().unwrap(), Some(future.due_at));
+        assert!(store.reminder_list().unwrap().iter().find(|r| r.id == due.id).unwrap().notification_error);
+    }
+    #[test]
+    fn reminders_enforce_pending_capacity_and_bound_completed_history() {
+        let f = Fixture::new();
+        let mut store = enabled_reminder_store(&f);
+        for _ in 0..20 { store.create_reminder(1, "休息", 10_000).unwrap(); }
+        assert!(store.create_reminder(1, "多余", 10_000).is_err());
+        assert_eq!(store.claim_due_reminders(11_000).unwrap().len(), 20);
+        for _ in 0..20 { store.create_reminder(1, "喝水", 11_000).unwrap(); }
+        assert_eq!(store.claim_due_reminders(12_000).unwrap().len(), 20);
+        assert_eq!(store.reminder_list().unwrap().len(), 20);
+        assert!(store.reminder_list().unwrap().iter().all(|r| r.title == "喝水"));
+    }
+    #[test]
+    fn disabled_reminders_cannot_be_created_or_claimed_and_pending_are_cancelled() {
+        let f = Fixture::new();
+        let mut store = Store::new(&f.0).unwrap();
+        assert!(store.create_reminder(1, "休息", 10_000).is_err());
+        store = enabled_reminder_store(&f);
+        store.create_reminder(1, "休息", 10_000).unwrap();
+        let version = store.settings().settings_version;
+        store.preview_settings(version, serde_json::json!({"remindersEnabled":false})).unwrap();
+        assert_eq!(store.reminder_list().unwrap().len(), 1);
+        store.save_settings(version, serde_json::json!({"remindersEnabled":false})).unwrap();
+        assert!(store.claim_due_reminders(12_000).unwrap().is_empty());
+        store.disable_pending_reminders().unwrap();
+        assert!(store.reminder_list().unwrap().is_empty());
+        drop(store);
+        assert!(Store::new(&f.0).unwrap().reminder_list().unwrap().is_empty());
+    }
+    #[test]
+    fn reminder_invalid_inputs_do_not_write_rows() {
+        let f = Fixture::new();
+        let mut store = enabled_reminder_store(&f);
+        for (seconds, title, now) in [(0, "休息", 0), (604_801, "休息", 0), (1, "控制\n符", 0), (1, "休息", u64::MAX)] {
+            assert!(store.create_reminder(seconds, title, now).is_err());
+        }
+        assert!(store.reminder_list().unwrap().is_empty());
+    }
+    #[test]
+    fn translation_extension_is_opt_in_and_persists() {
+        let f = Fixture::new();
+        let mut store = Store::new(&f.0).unwrap();
+        assert!(!store.settings().translation_enabled);
+        let version = store.settings().settings_version;
+        assert!(store.save_settings(version, serde_json::json!({"translationEnabled":"yes"})).is_err());
+        store.save_settings(version, serde_json::json!({"translationEnabled":true})).unwrap();
+        drop(store);
+        let mut reopened = Store::new(&f.0).unwrap();
+        assert!(reopened.settings().translation_enabled);
+        reopened.save_settings(reopened.settings().settings_version, serde_json::json!({"translationEnabled":false})).unwrap();
+        assert!(!Store::new(&f.0).unwrap().settings().translation_enabled);
+    }
+    #[test]
+    fn conversion_extension_preserves_draft_boundary_and_persists() {
+        let f = Fixture::new();
+        let mut store = Store::new(&f.0).unwrap();
+        assert!(!store.settings().conversion_enabled);
+        let version = store.settings().settings_version;
+        assert!(store.save_settings(version, serde_json::json!({"conversionEnabled":"yes"})).is_err());
+        assert!(store.preview_settings(version, serde_json::json!({"conversionEnabled":true})).unwrap().conversion_enabled);
+        assert!(!Store::new(&f.0).unwrap().settings().conversion_enabled);
+        store.save_settings(version, serde_json::json!({"conversionEnabled":true})).unwrap();
+        drop(store);
+        let mut reopened = Store::new(&f.0).unwrap();
+        assert!(reopened.settings().conversion_enabled);
+        reopened.save_settings(reopened.settings().settings_version, serde_json::json!({"theme":"dark"})).unwrap();
+        assert!(Store::new(&f.0).unwrap().settings().conversion_enabled);
+    }
     #[test]
     fn window_placement_is_validated_and_persists_across_reopen() {
         let f = Fixture::new();

@@ -1,0 +1,97 @@
+[
+  {
+    "id": "office",
+    "name": "Office 文档",
+    "description": "Word、Excel、PPT 格式转换与 PDF 导出",
+    "version": "26.8.1",
+    "license": "MPL-2.0",
+    "source": "https://www.libreoffice.org/download/",
+    "installedBytes": 1610612736,
+    "entry": "program/soffice.com",
+    "kind": "msi",
+    "download": {
+      "url": "https://download.documentfoundation.org/libreoffice/stable/26.8.1/win/x86_64/LibreOffice_26.8.1_Win_x86-64.msi",
+      "bytes": 374870016,
+      "sha256": "c6298b10cfa1748bcbedad94c62ce771e240e5021bfd6d7a967cd571b04b5312",
+      "hosts": [
+        "download.documentfoundation.org",
+        "downloadarchive.documentfoundation.org",
+        "mirrors.tuna.tsinghua.edu.cn",
+        "mirrors.bfsu.edu.cn",
+        "mirrors.nju.edu.cn",
+        "mirror-hk.koddos.net",
+        "mirror.aarnet.edu.au",
+        "tdf.jensgutermuth.de",
+        "ftp.gwdg.de",
+        "ftp.fau.de",
+        "mirror1.cs-georgetown.net"
+      ]
+    }
+  },
+  {
+    "id": "pandoc",
+    "name": "Markdown 与网页文档",
+    "description": "Markdown、HTML、TXT 与 Word 内容转换",
+    "version": "3.12.1",
+    "license": "GPL-2.0-or-later",
+    "source": "https://github.com/jgm/pandoc/releases/tag/3.12.1",
+    "installedBytes": 236017543,
+    "entry": "pandoc-3.12.1/pandoc.exe",
+    "kind": "zip",
+    "download": {
+      "url": "https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-windows-x86_64.zip",
+      "bytes": 42154914,
+      "sha256": "6ef431cb20b2c24a0371fc19200dc49d452be54b1b5c9239f3462841ef53e587",
+      "hosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ]
+    },
+    "unpackedLimit": 237066119
+  },
+  {
+    "id": "pdf",
+    "name": "PDF 与可编辑文档",
+    "description": "图片与 PDF、文字/表格提取及图片式 PPT；通过本地组件包安装",
+    "version": "1.0.0",
+    "license": "MIT; bundled dependency notices",
+    "source": "SuperSearch component build",
+    "installedBytes": 78147878,
+    "entry": "supersearch-conversion-helper.exe",
+    "kind": "zip",
+    "download": {
+      "url": "https://github.com/Onlyaiyancc/SuperSearch/releases/download/v0.1.8/supersearch-pdf-component-1.0.0-windows-x64.zip",
+      "bytes": 39745426,
+      "sha256": "eb9c7289eea77b21e4d1d102c2fdd80acc3f7ee573c5871e0eee7b9ed71d0a10",
+      "hosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ]
+    },
+    "unpackedLimit": 79196454
+  },
+  {
+    "id": "ocr",
+    "name": "扫描件文字识别",
+    "description": "简体中文与英语 OCR；通过本地组件包安装",
+    "version": "1.0.1",
+    "license": "Apache-2.0; Leptonica BSD; libpng/zlib licenses",
+    "source": "https://github.com/tesseract-ocr/tesseract",
+    "installedBytes": 15226626,
+    "entry": "tesseract.exe",
+    "kind": "zip",
+    "unpackedLimit": 16275202,
+    "download": {
+      "url": "https://github.com/Onlyaiyancc/SuperSearch/releases/download/v0.1.8/supersearch-ocr-component-1.0.1-windows-x64.zip",
+      "bytes": 7591484,
+      "sha256": "7a21ba7609b3d2efb7a87a631f00ee7bfbd514dbdefb95c88597d5e1d7dc680c",
+      "hosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ]
+    }
+  }
+]
