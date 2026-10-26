@@ -31,7 +31,7 @@ reqwest = { version = "0.13.5", default-features = false, features = ["native-tl
 rusqlite = { version = "0.32", features = ["bundled"] }
 pinyin = "0.10"
 unicode-normalization = "0.1"
-windows = { version = "0.61", features = ["Data_Xml_Dom", "Data_Pdf", "Foundation", "Foundation_Collections", "Storage_Streams", "Graphics_Imaging", "UI_Notifications", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_LibraryLoader", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Registry", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi", "Win32_Graphics_Imaging", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_Security", "Win32_UI_Shell_Common", "Win32_Storage_FileSystem", "Win32_UI_Controls_Dialogs"] }
+windows = { version = "0.62", features = ["Data_Xml_Dom", "Data_Pdf", "Foundation", "Foundation_Collections", "Storage_Streams", "Graphics_Imaging", "UI_Notifications", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_LibraryLoader", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Registry", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi", "Win32_Graphics_Imaging", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_Security", "Win32_UI_Shell_Common", "Win32_Storage_FileSystem", "Win32_UI_Controls_Dialogs"] }
 
 [profile.release]
 opt-level = "s"
