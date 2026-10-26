@@ -1,6 +1,6 @@
 import type { Scope, SearchSnapshot } from './types';
 
-export type WindowLayout = { layout: 'compact' | 'results' | 'settings'; rows: number; requestId?: string };
+export type WindowLayout = { layout: 'compact' | 'results' | 'settings' | 'preview'; rows: number; requestId?: string; height?: number };
 
 export function emptySearchSession(requestId: string) {
   return {
@@ -46,7 +46,7 @@ export function createLayoutSync(send: (value: WindowLayout) => Promise<unknown>
           const batch = next;
           next = undefined;
           const target = batch.value;
-          const key = `${target.layout}:${target.rows}:${target.requestId ?? ''}`;
+          const key = `${target.layout}:${target.rows}:${target.requestId ?? ''}:${target.height ?? ''}`;
           try {
             // DPI 变化后原生尺寸可能已改变，同一逻辑布局也必须重新发送。
             if (batch.force || key !== applied) {

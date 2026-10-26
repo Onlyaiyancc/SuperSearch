@@ -1,15 +1,33 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = dirname(dirname(scriptPath));
 
+export function cmakeEnvironment(environment) {
+  if (Object.keys(environment).some(key => key.toLowerCase() === 'cmake')) return environment;
+  // 优先沿用用户配置；仅给子进程补充已安装的 VS CMake，不修改全局 PATH。
+  for (const prefix of [environment.ProgramFiles, environment['ProgramFiles(x86)']].filter(Boolean)) {
+    const root = join(prefix, 'Microsoft Visual Studio');
+    if (!existsSync(root)) continue;
+    for (const version of readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory()).reverse()) {
+      const directory = join(root, version.name);
+      for (const edition of readdirSync(directory, { withFileTypes: true }).filter(entry => entry.isDirectory())) {
+        const cmake = join(directory, edition.name, 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe');
+        if (existsSync(cmake)) return { ...environment, CMAKE: cmake };
+      }
+    }
+  }
+  return environment;
+}
+
 export function describeLaunch(mode = 'dev', projectPath = projectRoot, environment = process.env, extraArgs = []) {
   if (!['dev', 'build', 'test', 'check', 'smoke', 'benchmark', 'audit', 'audit-install'].includes(mode)) {
     throw new Error(`Unknown desktop mode: ${mode}`);
   }
+  environment = cmakeEnvironment(environment);
 
   const cargoHome = join(projectPath, '.tools/cargo');
   const localCargo = join(cargoHome, 'bin/cargo.exe');

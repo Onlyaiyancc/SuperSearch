@@ -1,0 +1,15 @@
+# PDF component native runtime notices
+
+This directory preserves original notices for the native libraries actually present in the PDF helper component. `SOURCES.json` pins every native DLL and notice with SHA-256 and records the exact upstream notice location. The binaries are unchanged from the locally tested candidate archive; only license and provenance files were added for first public distribution.
+
+The packaged Python 3.13.5, libffi 3.4.4, mpdecimal 4.0.0, zlib 1.2.13 and Microsoft VC++/UCRT binaries came from the local Anaconda Python environment. Exact original package archives were retrieved and verified against conda metadata for Python, mpdecimal, zlib and vs2015_runtime; their payloads match the packaged DLLs. The installed libffi package paths metadata matches the packaged DLL. Anaconda's recipe copyright notice is retained separately from upstream software licenses; it does not replace Microsoft runtime license terms.
+
+PyInstaller's original `Analysis-00.toc` records that OpenSSL 3.6.4, Expat 2.8.1, liblzma 5.8.3 and bzip2 1.0.8 DLLs were selected from the Codex native Poppler runtime directory. The current provider DLLs have identical PE payloads after excluding only the Authenticode certificate block and PE checksum; their current signatures differ from the original candidate for five libraries. Both current-provider hashes and normalized PE hashes are recorded without claiming byte-identical signatures. Three additional Windows API-set forwarders (10.0.26100.4654) also came from that native runtime and retain the Windows SDK terms. This does not include the Poppler program or its GPL library. Actual versions were checked with PE resource versions, or the library's version export for bzip2/mpdecimal. Original notices are fetched from the exact matching official upstream release tags.
+
+The XZ Utils `COPYING` file explicitly identifies liblzma as 0BSD. GPL/LGPL command-line utilities from XZ Utils are not included. Original XZ licensing details and the 0BSD text are both preserved.
+
+Microsoft Visual C++ 2015-2022 runtime terms are preserved as the original Microsoft DOCX document; Windows 10 SDK terms are preserved as the original Microsoft Learn HTML. These cover proprietary runtime material and are retained separately from the application's MIT license. Their inclusion is provenance and notice preservation, not a claim that the application license relicenses Microsoft binaries.
+
+The existing `licenses/` and `DEPENDENCIES.json` continue to cover Python distributions and their embedded native libraries, including PDFium and Pillow. `licenses/Python-LICENSE.txt` remains present. Build-time Python, Anaconda and Poppler programs are not separately shipped in this component.
+
+Future packaging checks the complete top-level native DLL inventory, file sizes and SHA-256 values against the reviewed snapshot and fails if they change or a required original notice is absent. Updating Python/native dependencies therefore requires a fresh source/license review and manifest update.

@@ -521,26 +521,27 @@ mod tests {
 
     #[test]
     fn channel_deadline_does_not_turn_a_loading_to_ready_transition_into_failure() {
+        use std::os::windows::io::{FromRawHandle, OwnedHandle};
+
+        let wake = unsafe { CreateEventW(ptr::null(), 0, 0, ptr::null()) };
+        assert!(!wake.is_null());
+        let _wake = unsafe { OwnedHandle::from_raw_handle(wake) };
         let client = EverythingClient { shared: Arc::new(Shared {
             mailbox: Mutex::new(Mailbox { query: None, status: None, cached: provider("indexLoading", "Bundled file index is loading."), options: None, restart: false, diagnostics: json!({}) }),
-            stop: AtomicBool::new(false), running: AtomicBool::new(true), wake: 0,
+            stop: AtomicBool::new(false), running: AtomicBool::new(true), wake: wake as usize,
         }) };
         std::thread::scope(|scope| {
             let shared = client.shared.clone();
             scope.spawn(move || {
-                let deadline = Instant::now() + Duration::from_secs(1);
-                loop {
-                    {
-                        let mut mailbox = shared.mailbox.lock().unwrap();
-                        if let Some(reply) = mailbox.status.take() {
-                            mailbox.cached = provider("ready", "Everything is ready.");
-                            drop(reply);
-                            break;
-                        }
-                    }
-                    assert!(Instant::now() < deadline);
-                    std::thread::sleep(Duration::from_millis(1));
-                }
+                // 等请求入队后再取邮箱，避免轮询抢锁触发合法的“正在检查”分支。
+                use windows::Win32::{Foundation::{HANDLE, WAIT_OBJECT_0}, System::Threading::WaitForSingleObject};
+                assert_eq!(unsafe { WaitForSingleObject(HANDLE(shared.wake as *mut c_void), 5000) }, WAIT_OBJECT_0);
+                let mut mailbox = shared.mailbox.lock().unwrap();
+                let reply = mailbox.status.take().expect("Status request must be queued before wake");
+                mailbox.cached = provider("ready", "Everything is ready.");
+                // 先释放邮箱再断开回复，保证回退读取能观察到已发布的就绪状态。
+                drop(mailbox);
+                drop(reply);
             });
             assert_eq!(client.status().status, "ready");
         });

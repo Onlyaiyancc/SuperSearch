@@ -47,4 +47,10 @@ export type Settings = {
   autoStartEverything: boolean;
   theme: 'system' | 'light' | 'dark';
   windowPlacement: 'remember' | 'cursor';
+  translationEnabled: boolean;
+  filePreviewEnabled: boolean;
+  remindersEnabled: boolean;
+  conversionEnabled: boolean;
+  qrScanEnabled: boolean;
+  qrScanShortcut: string;
 };

@@ -1,9 +1,12 @@
 {
   "name": "supersearch",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/Onlyaiyancc/SuperSearch.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Onlyaiyancc/SuperSearch.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -27,7 +30,9 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
-    "lucide-svelte": "^0.468.0"
+    "dompurify": "^3.4.17",
+    "lucide-svelte": "^0.468.0",
+    "marked": "^18.1.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",

@@ -3,7 +3,7 @@ use tauri::{PhysicalPosition, PhysicalRect, PhysicalSize};
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum WindowLayout { Compact, Results, Settings }
+pub enum WindowLayout { Compact, Results, Settings, Preview }
 
 pub struct Geometry {
     pub size: PhysicalSize<u32>,
@@ -35,7 +35,16 @@ pub fn fit(layout: WindowLayout, rows: u32, work: &PhysicalRect<i32, u32>, scale
         WindowLayout::Results if rows == 0 => 76.0,
         WindowLayout::Results => 172.0 + 76.0 * rows.min(6) as f64,
         WindowLayout::Settings => 620.0,
+        WindowLayout::Preview => 320.0,
     };
+    fit_height(height, work, scale, anchor)
+}
+
+pub fn fit_preview(height: u32, work: &PhysicalRect<i32, u32>, scale: f64, anchor: Option<PhysicalPosition<i32>>) -> Geometry {
+    fit_height(height.clamp(220,620) as f64, work, scale, anchor)
+}
+
+fn fit_height(height: f64, work: &PhysicalRect<i32, u32>, scale: f64, anchor: Option<PhysicalPosition<i32>>) -> Geometry {
     let size = PhysicalSize::new(
         // 始终从产品逻辑宽度计算，断屏导致的临时收缩不能成为下一次的正常宽度。
         (680.0 * scale).round().clamp(1.0, work.size.width.max(1) as f64) as u32,
@@ -50,10 +59,31 @@ pub fn fit(layout: WindowLayout, rows: u32, work: &PhysicalRect<i32, u32>, scale
     Geometry { size, position: PhysicalPosition::new(x.clamp(left,right).round() as i32, y.clamp(top,bottom).round() as i32) }
 }
 
+pub fn resized_position(work: &PhysicalRect<i32,u32>, position: PhysicalPosition<i32>, previous: PhysicalSize<u32>, next: PhysicalSize<u32>) -> PhysicalPosition<i32> {
+    // 展开和收起都围绕当前窗口中心，手动拖动后的中心也保留；边缘仍受工作区约束。
+    let x = i64::from(position.x) + (i64::from(previous.width)-i64::from(next.width))/2;
+    let y = i64::from(position.y) + (i64::from(previous.height)-i64::from(next.height))/2;
+    let left = i64::from(work.position.x);
+    let top = i64::from(work.position.y);
+    let right = left + i64::from(work.size.width.saturating_sub(next.width));
+    let bottom = top + i64::from(work.size.height.saturating_sub(next.height));
+    PhysicalPosition::new(x.clamp(left,right).clamp(i64::from(i32::MIN),i64::from(i32::MAX)) as i32,
+        y.clamp(top,bottom).clamp(i64::from(i32::MIN),i64::from(i32::MAX)) as i32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     fn primary() -> PhysicalRect<i32,u32> { PhysicalRect { position: PhysicalPosition::new(0,0), size: PhysicalSize::new(1920,1080) } }
+    #[test]
+    fn image_preview_height_is_bounded_scaled_and_fitted_to_work_area() {
+        assert_eq!(fit_preview(320, &work(), 1.0, None).size.height, 320);
+        assert_eq!(fit_preview(0, &work(), 1.0, None).size.height, 220);
+        assert_eq!(fit_preview(u32::MAX, &work(), 1.0, None).size.height, 620);
+        assert_eq!(fit_preview(320, &work(), 1.5, None).size.height, 480);
+        let small = PhysicalRect { position: PhysicalPosition::new(0,0), size: PhysicalSize::new(500,300) };
+        assert_eq!(fit_preview(620, &small, 1.5, None).size, PhysicalSize::new(500,300));
+    }
     #[test]
     fn disconnected_monitor_centers_even_after_windows_moves_the_window_to_a_corner() {
         let mut memory = MonitorMemory::default();
@@ -95,6 +125,22 @@ mod tests {
         assert_eq!(restored.size.width,680);
     }
     fn work() -> PhysicalRect<i32,u32> { PhysicalRect { position: PhysicalPosition::new(-1920,40), size: PhysicalSize::new(1920,1040) } }
+    #[test]
+    fn resize_centers_full_results_around_the_compact_window() {
+        let compact = fit(WindowLayout::Compact, 0, &primary(), 1.0, None);
+        let results = fit(WindowLayout::Results, 6, &primary(), 1.0, None);
+        assert_eq!(resized_position(&primary(), compact.position, compact.size, results.size), results.position);
+        assert_eq!(resized_position(&primary(), results.position, results.size, compact.size), compact.position);
+    }
+    #[test]
+    fn resize_preserves_dragged_center_and_handles_dpi_and_work_area_edges() {
+        let position = PhysicalPosition::new(-1500,400);
+        assert_eq!(resized_position(&work(), position, PhysicalSize::new(680,76), PhysicalSize::new(680,620)), PhysicalPosition::new(-1500,128));
+        assert_eq!(resized_position(&primary(), PhysicalPosition::new(450,500), PhysicalSize::new(1020,114), PhysicalSize::new(1020,930)), PhysicalPosition::new(450,92));
+        assert_eq!(resized_position(&work(), PhysicalPosition::new(-1920,40), PhysicalSize::new(680,76), PhysicalSize::new(680,628)), PhysicalPosition::new(-1920,40));
+        let small = PhysicalRect { position: PhysicalPosition::new(-300,-200), size: PhysicalSize::new(400,300) };
+        assert_eq!(resized_position(&small, PhysicalPosition::new(80,90), PhysicalSize::new(400,76), PhysicalSize::new(400,300)),small.position);
+    }
     #[test]
     fn initial_window_centers_in_work_area_and_keeps_dragged_anchor() {
         let initial = fit(WindowLayout::Compact, 0, &work(), 1.0, None);

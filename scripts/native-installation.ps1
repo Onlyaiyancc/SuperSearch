@@ -19,7 +19,7 @@ $taskService = 'Everything (SuperSearch)'
 if ((Test-Path -LiteralPath $taskInstall) -or (Test-Path -LiteralPath $taskData) -or (Get-Service $taskService,$taskDefaultService -ErrorAction SilentlyContinue)) { throw 'Runner already contains a relevant installation; refusing to modify it.' }
 $taskOutput = Join-Path $taskRoot 'test-results/native-installation'
 New-Item -ItemType Directory -Force -Path $taskOutput | Out-Null
-$taskReport = [ordered]@{ outcome='failed'; candidateRun=$CandidateRun; candidateSha=$CandidateSha; baselineTag='v0.1.6-beta.1'; checks=[ordered]@{}; environment='Disposable GitHub-hosted Windows runner, silent elevated installation; UAC interaction not exercised'; phase='download' }
+$taskReport = [ordered]@{ outcome='failed'; candidateRun=$CandidateRun; candidateSha=$CandidateSha; baselineTag='v0.1.7'; checks=[ordered]@{}; environment='Disposable GitHub-hosted Windows runner, silent elevated installation; UAC interaction not exercised'; phase='download' }
 $taskReport.os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber)
 $taskReport.volumes=@(Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystemType,DriveType)
 function Invoke-Checked([string]$File, [string[]]$Arguments, [int]$Timeout = 180) {
@@ -89,10 +89,10 @@ try {
     $taskSource = gh api "repos/$taskRepo/contents/package.json?ref=$CandidateSha" | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read exact candidate source version.' }
     $taskVersion=([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($taskSource.content)) | ConvertFrom-Json).version
-    $taskShape=node scripts/release-policy.mjs candidate $taskVersion '0.1.6' | ConvertFrom-Json
+    $taskShape=node scripts/release-policy.mjs candidate $taskVersion '0.1.7' | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Candidate is not a cross-version upgrade.' }
     $taskReport.candidateVersion=$taskVersion
-    $taskReport.baselineVersion='0.1.6'
+    $taskReport.baselineVersion='0.1.7'
     gh run download $CandidateRun --repo $taskRepo --name windows-release --dir (Join-Path $taskOutput 'candidate')
     if ($LASTEXITCODE -ne 0) { throw 'Candidate download failed.' }
     $taskCandidate = Join-Path $taskOutput 'candidate'
@@ -104,10 +104,10 @@ try {
         if ((Get-FileHash -LiteralPath (Join-Path $taskCandidate $taskName) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskExpected) { throw 'Candidate hash mismatch.' }
     }
     if ($taskNames.Count -ne 2 -or @($taskNames | Select-Object -Unique).Count -ne 2) { throw 'Candidate manifest incomplete.' }
-    gh release download v0.1.6-beta.1 --repo $taskRepo --pattern 'SuperSearch_0.1.6_x64-setup.exe' --dir (Join-Path $taskOutput 'baseline')
+    gh release download v0.1.7 --repo $taskRepo --pattern 'SuperSearch_0.1.7_x64-setup.exe' --dir (Join-Path $taskOutput 'baseline')
     if ($LASTEXITCODE -ne 0) { throw 'Baseline download failed.' }
-    $taskBaseline = Join-Path $taskOutput 'baseline/SuperSearch_0.1.6_x64-setup.exe'
-    if ((Get-FileHash -LiteralPath $taskBaseline -Algorithm SHA256).Hash.ToLowerInvariant() -ne '7f6f65e0c05423c27808cfbc7d57ceb86931fac32031fe365ea4a24a0e6bb965') { throw 'Baseline hash mismatch.' }
+    $taskBaseline = Join-Path $taskOutput 'baseline/SuperSearch_0.1.7_x64-setup.exe'
+    if ((Get-FileHash -LiteralPath $taskBaseline -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'a6d12fec48c471e11268660c4c4de23add3c311771b0a06c951925e4f130938c') { throw 'Baseline hash mismatch.' }
     Expand-Archive -LiteralPath (Join-Path $taskCandidate 'SuperSearch-portable-x64.zip') -DestinationPath (Join-Path $taskOutput 'portable')
     $taskSetup = Join-Path $taskCandidate $taskShape.installer
     Assert-AppVersion $taskSetup $taskVersion
@@ -125,7 +125,7 @@ try {
     $taskReport.phase='baseline-install'
     Invoke-Checked $taskBaseline @('/S')
     Assert-DedicatedService
-    Assert-AppVersion $taskExe '0.1.6'
+    Assert-AppVersion $taskExe '0.1.7'
     Test-InstalledApp
     $taskReport.baselineInstalledExecutableSha256=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
     & node scripts/native-installation-store.mjs seed

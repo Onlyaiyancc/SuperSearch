@@ -16,3 +16,7 @@ docs/licenses/** -whitespace
 *.dll binary
 *.png binary
 *.ico binary
+
+# 上游许可证及其校验清单按原始字节保存，避免 Windows 换行转换破坏散列。
+scripts/conversion-helper/public-pdf-notices/** -text -whitespace conflict-marker-size=32
+scripts/conversion-helper/public-pdf-notices.json -text -whitespace

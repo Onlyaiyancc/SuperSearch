@@ -5,7 +5,7 @@
 The native target is Windows x64. The backend depends on Windows APIs and the Everything SDK; native tests cannot run directly on Linux or macOS.
 
 1. Install Git and [Node.js](https://nodejs.org/) 24 LTS. The frontend requires at least Node.js 22.12; the locally validated version was 24.11.1.
-2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with **Desktop development with C++**, MSVC x64 tools and the Windows SDK.
+2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with **Desktop development with C++**, MSVC x64 tools, the Windows SDK and **C++ CMake tools for Windows**. The screen QR decoder builds its bundled C++ core. The desktop launcher discovers Visual Studio's bundled CMake for child processes; alternatively install CMake on PATH or set `CMAKE` to its executable.
 3. Install Rust from [rustup.rs](https://rustup.rs/) with the MSVC toolchain, then reopen the terminal. `rust-toolchain.toml` selects stable / x86_64-pc-windows-msvc; the locally validated Rust version was 1.99.0.
 4. Install or confirm the presence of [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
 

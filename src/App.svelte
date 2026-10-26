@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { Search, Settings as SettingsIcon, X, ArrowLeft, ArrowUpRight, Folder, Pin, MoreHorizontal, Command, RefreshCw, Plus, Check, AlertCircle, Copy, Keyboard, Monitor, Download, Sun, Moon, Database } from 'lucide-svelte';
+  import { Search, Settings as SettingsIcon, X, ArrowLeft, ArrowUpRight, Folder, Pin, MoreHorizontal, Command, RefreshCw, Plus, Check, AlertCircle, Copy, Keyboard, Monitor, Download, Sun, Moon, Database, Puzzle, Languages, FileSearch, Bell, ArrowRightLeft, ScanLine } from 'lucide-svelte';
   import { call, preview, subscribe } from './bridge';
   import { acceptSnapshot, blocksIme, nextScope, scopes, selectedEntity, nextRequestId, mergeProviders, enterAction, hasDirectoryQuery } from './search-state';
   import { emptySearchSession, searchLayout, createLayoutSync, menuPosition } from './search-layout';
@@ -12,6 +12,17 @@
   import { runUiBenchmark, runUiSoak, type BenchmarkConfig, type SoakWindow } from './ui-benchmark';
   import BrandMark from './BrandMark.svelte';
   import ResultIcon from './ResultIcon.svelte';
+  import TranslationPanel from './TranslationPanel.svelte';
+  import { parseTranslationQuery } from './translation';
+  import FilePreviewPanel from './FilePreviewPanel.svelte';
+  import ReminderPanel from './ReminderPanel.svelte';
+  import ConversionPanel from './ConversionPanel.svelte';
+  import QrScanPanel from './QrScanPanel.svelte';
+  import { isQrScanQuery, qrScanError } from './qr-scan';
+  import { parseConversionQuery, conversionError, type ConversionSource } from './conversion';
+  import { parseReminderQuery } from './reminders';
+  import { previewShortcut } from './file-preview';
+  import type { WindowLayout } from './search-layout';
   import type { Provider, ResultItem, SearchSnapshot, Scope, Settings } from './types';
 
   let query = $state('');
@@ -41,7 +52,18 @@
   let draft = $state<Settings | null>(null);
   let includeText = $state('');
   let excludeText = $state('');
-  let settingsTab = $state<'general' | 'search' | 'advanced'>('general');
+  let settingsTab = $state<'general' | 'search' | 'extensions' | 'advanced'>('general');
+  let translationPanel = $state<{ submit: () => Promise<void> }>();
+  let reminderPanel = $state<{ submit: () => Promise<void> }>();
+  let conversionPanel = $state<{ submit: () => Promise<void> }>();
+  let qrPanel = $state<{ submit: () => Promise<void>; scan: () => Promise<void>; cancel: () => void; move: (direction: number) => void }>();
+  let qrShortcutError = $state('');
+  let qrShortcutInput = $state<HTMLInputElement>();
+  let qrDetails = $state<HTMLDetailsElement>();
+  let conversionOpen = $state(false);
+  let conversionSources = $state<ConversionSource[]>([]);
+  let previewItem = $state<ResultItem | null>(null);
+  let previewHeight = $state(320);
   let shortcutError = $state('');
   let shortcutRecording = $state(false);
   let shortcutInput = $state<HTMLInputElement>();
@@ -63,7 +85,14 @@
   const metrics = createSearchMetrics(preview ? 'preview' : 'desktop');
   let benchmarkRunning = $state(false);
   const scopeLabels: Record<Scope, string> = { all: '全部', apps: '应用', files: '文件', folders: '文件夹' };
-  const layout = $derived(searchLayout(query, requestId, snapshot, pending, view === 'settings' || !!modal));
+  const translationQuery = $derived(parseTranslationQuery(query));
+  const reminderQuery = $derived(parseReminderQuery(query));
+  const conversionQuery = $derived(conversionOpen || parseConversionQuery(query));
+  const qrQuery = $derived(isQrScanQuery(query));
+  const pluginQuery = $derived(!!translationQuery || !!reminderQuery || conversionQuery || qrQuery);
+  const layout = $derived<WindowLayout>(previewItem && view === 'search' && !modal
+    ? { layout: 'preview', rows: 0, requestId, height: previewHeight }
+    : searchLayout(query, requestId, snapshot, pending, view === 'settings' || !!modal || pluginQuery));
   const expanded = $derived(layout.layout === 'results');
   const syncLayout = createLayoutSync(value => call('sync_window_layout', value));
   const activeItem = $derived(snapshot.items.find(item => item.entityId === selected));
@@ -74,8 +103,8 @@
   const directoryQuery = $derived(hasDirectoryQuery(query));
   const directoryScope = $derived(scopeDescription(snapshot.requestId === requestId ? snapshot.directory : null));
   const folderCompletions = $derived(!pending && snapshot.requestId === requestId ? (snapshot.folderCompletions ?? []).slice(0, 5) : []);
-  const inlineStatus = $derived(error || notice || (query.trim() && pending ? '搜索中…' : query.trim() && !snapshot.items.length ? folderCompletions.length ? `${folderCompletions.length} 个文件夹可补全` : directoryQuery ? '未找到此文件夹内的匹配文件' : '无匹配结果' : !preview && unavailableProvider ? providerMessage(unavailableProvider) : ''));
-  const webFallback = $derived(!!query.trim() && !directoryQuery && !pending && snapshot.complete && snapshot.requestId === requestId && !snapshot.items.length && !composing && !busy);
+  const inlineStatus = $derived(pluginQuery ? '' : error || notice || (query.trim() && pending ? '搜索中…' : query.trim() && !snapshot.items.length ? folderCompletions.length ? `${folderCompletions.length} 个文件夹可补全` : directoryQuery ? '未找到此文件夹内的匹配文件' : '无匹配结果' : !preview && unavailableProvider ? providerMessage(unavailableProvider) : ''));
+  const webFallback = $derived(!pluginQuery && !!query.trim() && !directoryQuery && !pending && snapshot.complete && snapshot.requestId === requestId && !snapshot.items.length && !composing && !busy);
   const theme = $derived(settings?.theme ?? 'light');
   const footerStatus = $derived(error || notice || (snapshot.truncated ? '结果数量已达上限，请缩小搜索范围。' : !preview && unavailableProvider ? providerMessage(unavailableProvider) : ''));
   const aliasInput = $derived(parseAliases(dialogAliases, originalAliases));
@@ -90,7 +119,7 @@
 
   $effect(() => {
     const epoch = uiEpoch;
-    const target = { layout: layout.layout, rows: layout.rows, ...(layout.requestId ? { requestId: layout.requestId } : {}) };
+    const target = { ...layout };
     if (!hidden) void syncLayout(target).catch(value => { if (epoch === uiEpoch) error = message(value); });
   });
 
@@ -107,7 +136,7 @@
   async function measureRenderedSnapshot(incoming: SearchSnapshot) {
     await tick();
     if (hidden || view !== 'search' || incoming.requestId !== requestId || snapshot.snapshotRevision !== incoming.snapshotRevision) return;
-    try { await syncLayout({ layout: layout.layout, rows: layout.rows, ...(layout.requestId ? { requestId: layout.requestId } : {}) }); }
+    try { await syncLayout({ ...layout }); }
     catch { return; }
     // DOM 更新及原生尺寸确认后等两帧；这是显示时机的近似值，不代表物理屏幕扫描。
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -132,6 +161,8 @@
 
   // 输入变化时先取消可执行状态；防抖期间的 Enter 不会打开旧结果。
   function invalidate(retainCompletion = false) {
+    qrPanel?.cancel();
+    previewItem = null;
     clearTimeout(debounce);
     if (!retainCompletion) completionCycle.reset();
     const previous = requestId;
@@ -152,6 +183,8 @@
     if (!force && scheduledKey === key) return;
     scheduledKey = key;
     invalidate(retainCompletion);
+    // 明确的扩展命令独立处理，输入过程不触发本地查询或联网兜底。
+    if (parseTranslationQuery(query) || parseReminderQuery(query) || parseConversionQuery(query) || isQrScanQuery(query)) { pending = false; snapshot = { ...snapshot, complete: true }; return; }
     if (!query.trim()) { pending = false; snapshot = { ...snapshot, complete: true }; return; }
     if (composing || hidden) return;
     const id = requestId;
@@ -244,6 +277,37 @@
     finally { if (epoch === uiEpoch) busy = false; }
   }
 
+  function openPreview(item: ResultItem) {
+    if (!settings?.filePreviewEnabled || item.kind !== 'file' || !item.available || pending || busy) return;
+    menu = null;
+    selected = item.entityId;
+    selectionEstablished = true;
+    previewHeight = 320;
+    previewItem = item;
+    void tick().then(() => document.querySelector<HTMLElement>('.file-preview-panel button')?.focus());
+  }
+
+  function closePreview() {
+    previewItem = null;
+    void tick().then(() => input?.focus());
+  }
+
+  async function openConversion(item: ResultItem) {
+    if (!settings?.conversionEnabled || item.kind !== 'file' || !item.available || pending || busy) return;
+    menu = null;
+    busy = true;
+    const epoch = uiEpoch;
+    const id = requestId;
+    try {
+      const sources = await call<ConversionSource[]>('conversion_from_result', { requestId: id, resultId: item.resultId });
+      if (epoch !== uiEpoch || id !== requestId) return;
+      conversionSources = sources;
+      conversionOpen = true;
+      void tick().then(() => document.querySelector<HTMLElement>('.conversion-panel button')?.focus());
+    } catch (value) { if (epoch === uiEpoch && id === requestId) error = conversionError(value); }
+    finally { if (epoch === uiEpoch) busy = false; }
+  }
+
   async function togglePin(item: ResultItem) {
     if (pending || busy) return;
     busy = true;
@@ -287,6 +351,9 @@
   }
 
   function showSearch() {
+    qrPanel?.cancel();
+    previewItem = null;
+    conversionOpen = false;
     uiEpoch++;
     settingsLoad++;
     busy = false;
@@ -320,6 +387,25 @@
     void tick().then(() => input?.focus());
   }
 
+  async function showQrScan() {
+    // 专用事件保留扫码视图；原生临时隐藏不会发送 hide_search。
+    if (qrQuery && view === 'search' && !hidden && !modal) { await qrPanel?.scan(); return; }
+    qrPanel?.cancel();
+    uiEpoch++;
+    settingsLoad++;
+    busy = false;
+    composing = false;
+    compositionEndedAt = 0;
+    previewItem = null;
+    conversionOpen = false;
+    dialogElement?.close(); modal = null;
+    view = 'search'; hidden = false; query = 'qr';
+    scheduleSearch(true);
+    const epoch = uiEpoch;
+    await tick();
+    if (epoch === uiEpoch && qrQuery && view === 'search' && !hidden) { input?.focus(); await qrPanel?.submit(); }
+  }
+
   function handleKey(event: KeyboardEvent) {
     // 自动诊断只接受合成查询，避免前台键盘操作改变测试状态或触发文件动作。
     if (benchmarkRunning) { event.preventDefault(); return; }
@@ -334,12 +420,48 @@
       event.preventDefault();
       if (modal) closeModal();
       else if (menu) { menu = null; input?.focus(); }
+      else if (previewItem) closePreview();
       else if (view === 'settings') closeSettings();
+      else if (qrQuery) { qrPanel?.cancel(); query = ''; scheduleSearch(true); input?.focus(); }
+      else if (conversionOpen) { conversionOpen = false; input?.focus(); }
+      else if (conversionQuery) { query = ''; scheduleSearch(true); input?.focus(); }
       else void hide();
       return;
     }
     if (modal || view !== 'search') return;
-    if (event.ctrlKey && event.key === 'Tab') {
+    if (previewItem) return;
+    if (qrQuery) {
+      if (document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+        if (event.key === 'Enter' && !event.repeat) { event.preventDefault(); void qrPanel?.submit(); }
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); qrPanel?.move(event.key === 'ArrowDown' ? 1 : -1); }
+      }
+      return;
+    }
+    if (conversionQuery) {
+      if (event.key === 'Enter' && !event.repeat && document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        void conversionPanel?.submit();
+      }
+      return;
+    }
+    if (reminderQuery) {
+      if (event.key === 'Enter' && !event.repeat && document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        void reminderPanel?.submit();
+      }
+      return;
+    }
+    if (translationQuery) {
+      if (event.key === 'Enter' && document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        void translationPanel?.submit();
+      }
+      return;
+    }
+    if (!menu && previewShortcut(event, { enabled: settings?.filePreviewEnabled ?? false, established: selectionEstablished, inputFocused: document.activeElement === input, available: actionable, kind: activeItem?.kind ?? '', pending })) {
+      event.preventDefault();
+      if (activeItem) openPreview(activeItem);
+    } else if (event.ctrlKey && event.key === 'Tab') {
       event.preventDefault();
       changeScope(nextScope(scope, event.shiftKey));
     } else if (event.key === 'Tab' && !menu) {
@@ -372,11 +494,14 @@
   }
 
   async function openSettings() {
+    qrPanel?.cancel();
+    previewItem = null;
     const load = ++settingsLoad;
     const epoch = uiEpoch;
     menu = null;
     error = '';
     shortcutError = '';
+    qrShortcutError = '';
     view = 'settings';
     try {
       const loaded = await call<Settings>('get_settings');
@@ -387,6 +512,11 @@
       excludeText = settings.excludeDirectories.join('\n');
       await refreshProviderStatus();
     } catch (value) { if (load === settingsLoad && epoch === uiEpoch) error = message(value); }
+  }
+
+  function openExtensions() {
+    settingsTab = 'extensions';
+    if (view !== 'settings') void openSettings();
   }
 
   function closeSettings() {
@@ -414,9 +544,27 @@
     shortcutInput?.focus();
   }
 
+  function recordQrShortcut(event: KeyboardEvent) {
+    event.stopPropagation();
+    const result = captureShortcut(event);
+    if (result.kind === 'navigate') return;
+    event.preventDefault();
+    if (result.kind === 'cancel') { qrShortcutError = ''; qrShortcutInput?.blur(); return; }
+    if (result.kind === 'capture' && draft) { draft.qrScanShortcut = result.shortcut; qrShortcutError = ''; }
+    else if (result.kind === 'error') qrShortcutError = result.error === 'modifier' ? '请同时按住 Ctrl、Alt、Shift 或 Win，再按一个键。' : '此键暂不支持，请使用字母、数字、空格、方向键或 F1–F24。';
+  }
+
+  async function focusQrShortcutError() {
+    settingsTab = 'extensions';
+    await tick();
+    if (qrDetails) qrDetails.open = true;
+    qrShortcutInput?.focus();
+  }
+
   async function saveSettings() {
     if (!draft || !settings || busy) return;
     if (shortcutError) { await focusShortcutError(); return; }
+    if (qrShortcutError) { await focusQrShortcutError(); return; }
     busy = true;
     error = '';
     const epoch = uiEpoch;
@@ -437,7 +585,8 @@
     } catch (value) {
       if (epoch !== uiEpoch) return;
       const raw = value instanceof Error ? value.message : String(value);
-      if (/shortcut/i.test(raw)) { shortcutError = message(value); await focusShortcutError(); }
+      if (/qr.*shortcut|shortcut.*qr/i.test(raw)) { qrShortcutError = qrScanError(value); await focusQrShortcutError(); }
+      else if (/shortcut/i.test(raw)) { shortcutError = message(value); await focusShortcutError(); }
       else error = message(value);
     }
     finally { if (epoch === uiEpoch) busy = false; }
@@ -455,7 +604,8 @@
       if (epoch !== uiEpoch) return;
       if (command === 'refresh_apps') notice = '已请求刷新应用列表';
       if (command === 'start_everything') notice = '已请求重新启动搜索引擎';
-      if (view === 'search') scheduleSearch(true);
+      // 设置操作的迟到完成不能重置后来进入的扩展面板。
+      if (view === 'search' && !pluginQuery) scheduleSearch(true);
     } catch (value) { if (epoch === uiEpoch) error = message(value); }
     finally { if (epoch === uiEpoch) busy = false; }
   }
@@ -538,9 +688,15 @@
             if (!hidden) void syncLayout({ ...layout }, true).catch(value => { if (epoch === uiEpoch && !hidden) error = message(value); });
           }],
           ['show_search', () => { showSearch(); if (soakCycle?.hiddenSeen) soakCycle.resolve(); }],
+          ['qr_scan_requested', () => { void showQrScan(); }],
           ['settings_requested', () => { showSearch(); void openSettings(); }],
           ['hide_search', () => { uiEpoch++; busy = false; hidden = true; scheduledKey = ''; invalidate(); if (soakCycle) soakCycle.hiddenSeen = true; }],
-          ['apps_status', (value: Provider) => { providers = mergeProviders(providers, [value]); if (!benchmarkRunning && !hidden && view === 'search') scheduleSearch(true); void refreshProviderStatus(); }],
+          ['apps_status', (value: Provider) => {
+            providers = mergeProviders(providers, [value]);
+            // 后台应用刷新只重查普通搜索，不能清理扩展会话或取消临时隐藏中的扫码。
+            if (!benchmarkRunning && !hidden && view === 'search' && !pluginQuery) scheduleSearch(true);
+            void refreshProviderStatus();
+          }],
         ] as const) {
           const stop = await subscribe(event, handler as (value: unknown) => void);
           if (disposed) { stop(); return; }
@@ -586,14 +742,14 @@
       } catch (value) { if (!disposed && epoch === uiEpoch) { error = message(value); pending = false; } }
     }
     void initialize();
-    return () => { disposed = true; clearTimeout(debounce); soakCycle?.reject(new Error('UI soak was disposed')); cleanup.forEach(stop => stop()); };
+    return () => { disposed = true; qrPanel?.cancel(); clearTimeout(debounce); soakCycle?.reject(new Error('UI soak was disposed')); cleanup.forEach(stop => stop()); };
   });
 </script>
 
 <svelte:window onkeydown={handleKey} onclick={(event) => { if (menu && !(event.target as Element)?.closest('.action-menu, .result-menu-button, .footer-actions')) menu = null; }} />
 <svelte:document onvisibilitychange={() => { documentVisible = !document.hidden; }} />
 
-<main class="app-shell" class:preview-mode={preview} class:expanded class:settings-view={view === 'settings' || !!modal} data-theme={theme} data-tauri-drag-region inert={benchmarkRunning}>
+<main class="app-shell" class:preview-mode={preview} class:expanded class:settings-view={view === 'settings' || !!modal || pluginQuery || !!previewItem} style:height={previewItem && view === 'search' ? `${previewHeight}px` : undefined} data-theme={theme} data-tauri-drag-region inert={benchmarkRunning}>
   {#if hidden}
     <section class="hidden-state"><button class="primary" onclick={showSearch}>显示搜索 <ArrowUpRight size={16} /></button></section>
   {:else if view === 'search'}
@@ -603,7 +759,7 @@
           <span class="search-glyph" aria-hidden="true"><Search size={25} strokeWidth={1.8} /></span>
           <span class="settings-glyph" aria-hidden="true"><SettingsIcon size={22} strokeWidth={1.6} /></span>
         </button>
-        <input bind:this={input} bind:value={query} oninput={() => { notice = ''; scheduleSearch(); }}
+        <input bind:this={input} bind:value={query} oninput={() => { notice = ''; conversionOpen = false; scheduleSearch(); }}
           oncompositionstart={() => { composing = true; scheduledKey = ''; invalidate(); }}
           oncompositionend={() => { composing = false; compositionEndedAt = performance.now(); scheduledKey = ''; scheduleSearch(); }}
           placeholder="搜索应用、文件或文件夹" aria-label="搜索应用、文件和文件夹" aria-describedby="search-input-help"
@@ -617,7 +773,17 @@
       <span id="search-input-help" class="sr-only">输入名称搜索；也可输入 项目/报告 或 D:\项目\报告。目录范围包含子文件夹。同名文件夹会一起搜索，完整路径可指定唯一目录。也支持文件夹路径，空格后加文件名。</span>
       <span class="sr-only" role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'}>{inlineStatus || (expanded ? `找到 ${snapshot.items.length} 个结果` : '')}</span>
     </section>
-    {#if expanded}
+    {#if previewItem}
+      {#key `${requestId}:${previewItem.resultId}`}<FilePreviewPanel item={previewItem} {requestId} onHeight={(height) => { previewHeight = height; }} close={closePreview} open={() => { const item = previewItem; closePreview(); if (item) void execute(item); }} />{/key}
+    {:else if qrQuery}
+      <QrScanPanel bind:this={qrPanel} enabled={settings?.qrScanEnabled ?? false} {openExtensions} />
+    {:else if conversionQuery}
+      <ConversionPanel bind:this={conversionPanel} enabled={settings?.conversionEnabled ?? false} initialSources={conversionSources} {openExtensions} />
+    {:else if reminderQuery}
+      <ReminderPanel bind:this={reminderPanel} query={reminderQuery} enabled={settings?.remindersEnabled ?? false} active={!hidden && documentVisible} {openExtensions} />
+    {:else if translationQuery}
+      {#key translationQuery.mode}<TranslationPanel bind:this={translationPanel} query={translationQuery} enabled={settings?.translationEnabled ?? false} active={!hidden && documentVisible} {openExtensions} />{/key}
+    {:else if expanded}
       <section class="result-panel" aria-label="搜索结果">
         <div class="scope-bar">
           {#if directoryScope}<div class="directory-scope" title={`搜索范围：${directoryScope.path} · ${directoryScope.detail}`}><strong>{directoryScope.path}</strong><span class="scope-separator">/</span><span class="directory-detail">{directoryScope.detail}</span></div>{:else}<span class="result-summary">找到 {snapshot.items.length} 个结果</span>{/if}
@@ -649,6 +815,8 @@
                 {#if item.actions.includes('open')}<button role="menuitem" disabled={!item.available} onclick={() => execute(item)}><ArrowUpRight size={15} /><span>打开</span><kbd>↵</kbd></button>{/if}
                 {#if item.actions.includes('reveal')}<button role="menuitem" disabled={!item.available} onclick={() => execute(item, 'reveal')}><Folder size={15} /><span>在资源管理器中显示</span><kbd>Ctrl ↵</kbd></button>{/if}
                 {#if item.actions.includes('copyPath')}<button role="menuitem" disabled={!item.available} onclick={() => execute(item, 'copyPath')}><Copy size={15} /><span>复制路径</span><kbd>Ctrl ⇧ C</kbd></button>{/if}
+                {#if settings?.filePreviewEnabled && item.kind === 'file'}<button role="menuitem" disabled={!item.available} onclick={() => openPreview(item)}><FileSearch size={15} /><span>快速预览</span><kbd>空格</kbd></button>{/if}
+                {#if settings?.conversionEnabled && item.kind === 'file'}<button role="menuitem" disabled={!item.available} onclick={() => openConversion(item)}><ArrowRightLeft size={15} /><span>格式转换</span></button>{/if}
                 <div class="menu-divider"></div><button role="menuitem" onclick={() => togglePin(item)}><Pin size={15} /><span>{item.pinned ? '取消固定' : '固定快捷方式'}</span></button>
                 {#if item.kind === 'application'}<button role="menuitem" onclick={() => openModal('aliases', item)}><Keyboard size={15} /><span>设置别名</span></button>{/if}
               </div>{/if}
@@ -664,7 +832,7 @@
     {/if}
   {:else}
     <header class="settings-header" data-tauri-drag-region><button class="icon-button" aria-label="返回搜索" onclick={closeSettings}><ArrowLeft size={19} /></button><h1 data-tauri-drag-region>设置</h1><span class="settings-brand" data-tauri-drag-region><BrandMark size={25} />SuperSearch</span></header>
-    <div class="settings-layout"><nav class="settings-nav" aria-label="设置分类"><button class:active={settingsTab === 'general'} aria-current={settingsTab === 'general' ? 'page' : undefined} onclick={() => settingsTab = 'general'}><SettingsIcon size={19} />通用</button><button class:active={settingsTab === 'search'} aria-current={settingsTab === 'search' ? 'page' : undefined} onclick={() => settingsTab = 'search'}><Search size={19} />搜索</button><button class:active={settingsTab === 'advanced'} aria-current={settingsTab === 'advanced' ? 'page' : undefined} onclick={() => settingsTab = 'advanced'}><Database size={19} />索引与数据</button></nav>
+    <div class="settings-layout"><nav class="settings-nav" aria-label="设置分类"><button class:active={settingsTab === 'general'} aria-current={settingsTab === 'general' ? 'page' : undefined} onclick={() => settingsTab = 'general'}><SettingsIcon size={19} />通用</button><button class:active={settingsTab === 'search'} aria-current={settingsTab === 'search' ? 'page' : undefined} onclick={() => settingsTab = 'search'}><Search size={19} />搜索</button><button class:active={settingsTab === 'extensions'} aria-current={settingsTab === 'extensions' ? 'page' : undefined} onclick={openExtensions}><Puzzle size={19} />扩展</button><button class:active={settingsTab === 'advanced'} aria-current={settingsTab === 'advanced' ? 'page' : undefined} onclick={() => settingsTab = 'advanced'}><Database size={19} />索引与数据</button></nav>
       <section class="settings-content">
         {#if !draft}<div class="empty-state"><RefreshCw size={24} /><p>{error ? '无法加载设置。' : '正在加载设置…'}</p></div>
         {:else if settingsTab === 'general'}
@@ -695,6 +863,43 @@
           <label class="field-label spaced" for="exclude-dirs">排除以下目录</label><textarea id="exclude-dirs" bind:value={excludeText} placeholder="C:\Users\you\Downloads\Archive" rows="2"></textarea><p class="field-help">每行一个绝对路径；排除规则也适用于已固定文件。</p>
           <div class="button-row"><button class="secondary" disabled={busy} onclick={() => recovery('refresh_apps')}><RefreshCw size={14} />刷新应用</button><button class="secondary" disabled={busy} onclick={() => openModal('add')}><Plus size={14} />添加应用</button></div>
           <p class="field-help">直接输入 <code>项目/报告</code> 搜索文件夹内的文件；同名文件夹会一起搜索。输入 <code>D:\项目\报告</code> 指定完整路径，输入 <code>D:\项目\</code> 列出文件。包含子文件夹，也支持 <code>D:\项目 报告</code> 和 <code>ext:pdf</code>。</p>
+        {:else if settingsTab === 'extensions'}
+          <h2>扩展</h2><p class="settings-intro">按需开启，让搜索框多一些实用能力。</p>
+          <div class="provider-card extension-card">
+            <details class="extension-details" bind:this={qrDetails}>
+              <summary class="extension-card-title" aria-label="屏幕扫码说明"><ScanLine size={23} strokeWidth={1.6} /><span><strong>屏幕扫码</strong><span id="qr-description" class="extension-description">识别屏幕网址与二维码，复制或打开链接</span></span></summary>
+              <p>输入 <code>扫码</code> 或 <code>scan</code>，按回车识别鼠标所在显示器上显示的 HTTP/HTTPS 网址文字与二维码；也支持 <code>qr</code>、<code>扫一扫</code>。网页链接显示在二维码上方，分别复制或打开；不会自动打开。首次识别网址会准备本地文字识别组件，请保留完整包中的 <code>components</code> 文件夹。</p>
+              <p>在本机识别，不联网、不保存截图或扫码历史。每次最多显示 32 个二维码，单条内容最多 16 KiB；过大的屏幕或受保护内容可能无法扫描。</p>
+              <label class="field-label" for="qr-shortcut">扫码快捷键（可选）</label>
+              <div class="qr-shortcut-row"><input id="qr-shortcut" class="shortcut-field" bind:this={qrShortcutInput} value={draft.qrScanShortcut} onkeydown={recordQrShortcut} readonly placeholder="点击后按下组合键" aria-describedby={`qr-shortcut-help${qrShortcutError ? ' qr-shortcut-error' : ''}`} aria-invalid={!!qrShortcutError} /><button class="secondary" disabled={!draft.qrScanShortcut} onclick={() => { if (draft) draft.qrScanShortcut = ''; qrShortcutError = ''; }}>清除</button></div>
+              <p id="qr-shortcut-help" class="field-help">留空时仅通过搜索命令扫描；保存后生效，需与搜索快捷键不同。</p>
+              {#if qrShortcutError}<p id="qr-shortcut-error" class="field-error" role="alert">{qrShortcutError}</p>{/if}
+            </details>
+            <input id="qr-scan-enabled" type="checkbox" role="switch" class="switch" bind:checked={draft.qrScanEnabled} aria-label="屏幕扫码" aria-describedby="qr-description" />
+          </div>
+          <div class="provider-card extension-card">
+            <details class="extension-details">
+              <summary class="extension-card-title" aria-label="翻译与词典说明"><Languages size={23} strokeWidth={1.6} /><span><strong>翻译与词典</strong><span id="translation-description" class="extension-description">中英短文本翻译与英文单词查询</span></span></summary>
+              <div class="extension-commands"><p><code>翻译 hello / translate hello</code><span>英语译为中文</span></p><p><code>翻译 开发计划 / translate 开发计划</code><span>中文译为英语</span></p><p><code>查词 hello / dictionary hello</code><span>音标、英文释义与例句</span></p></div>
+              <p>也支持简写 <code>fy</code>、<code>dict</code>。命令后用空格分隔内容；英文命令不区分大小写。</p>
+              <p>使用 MyMemory 与 Free Dictionary API，无需密钥。按回车或点击提交后才发送文本；不会自动上传普通搜索词，也不保存翻译历史。</p>
+              <p>翻译每次最多 500 个 UTF-8 字节（常见汉字约 166 个）；公共服务有额度与可用性限制。词典提供英文释义，中文含义请使用翻译。</p>
+            </details>
+            <input id="translation-enabled" type="checkbox" role="switch" class="switch" bind:checked={draft.translationEnabled} aria-label="翻译与词典" aria-describedby="translation-description" />
+          </div>
+          <div class="provider-card extension-card">
+            <details class="extension-details"><summary class="extension-card-title" aria-label="文件快速预览说明"><FileSearch size={23} strokeWidth={1.6} /><span><strong>文件快速预览</strong><span id="preview-description" class="extension-description">空格查看图片、文档与代码</span></span></summary><p>用方向键选中文件后按空格，或从文件操作菜单选择“快速预览”。Esc 返回搜索结果。</p><p>仅在本机读取常规文件：PDF 上限 100 MiB，图片与 DOCX / XLSX / PPTX 上限 50 MiB，文本上限 1 GiB（分段读取）。支持 TIFF、ICO 和常见代码格式，HTML / SVG 仅展示源码。Office 仅预览文字与表格，不完整保留原排版；不支持旧版 Office 和网络文件。</p></details>
+            <input id="file-preview-enabled" type="checkbox" role="switch" class="switch" bind:checked={draft.filePreviewEnabled} aria-label="文件快速预览" aria-describedby="preview-description" />
+          </div>
+          <div class="provider-card extension-card">
+            <details class="extension-details"><summary class="extension-card-title" aria-label="倒计时提醒说明"><Bell size={23} strokeWidth={1.6} /><span><strong>倒计时提醒</strong><span id="reminder-description" class="extension-description">后台计时，到时发送桌面通知</span></span></summary><p>输入 <code>提醒 20m 休息</code> / <code>remind 20m 休息</code>，或 <code>倒计时 30s</code> / <code>timer 30s</code>，回车创建。也支持 <code>reminder</code>、<code>countdown</code>，英文不区分大小写。支持 s 秒、m 分钟、h 小时、d 天，可组合 <code>1h30m</code>；也支持中文单位。输入 <code>提醒</code> / <code>remind</code> 查看和取消。</p><p>支持 1 秒到 7 天，最多 20 个待执行提醒。隐藏窗口继续计时；退出后重新打开可恢复。请允许 SuperSearch 的 Windows 通知。</p></details>
+            <input id="reminders-enabled" type="checkbox" role="switch" class="switch" bind:checked={draft.remindersEnabled} aria-label="倒计时提醒" aria-describedby="reminder-description" />
+          </div>
+          {#if settings?.remindersEnabled && !draft.remindersEnabled}<p class="field-help" role="status">保存后将取消所有待执行提醒；点击“取消”则保留。</p>{/if}
+          <div class="provider-card extension-card">
+            <details class="extension-details"><summary class="extension-card-title" aria-label="格式转换说明"><ArrowRightLeft size={23} strokeWidth={1.6} /><span><strong>格式转换</strong><span id="conversion-description" class="extension-description">本地转换图片与文档，组件按需安装</span></span></summary><p>输入 <code>转换</code> 或 <code>convert</code> 选择文件，也可从文件操作菜单进入。支持批量处理，生成新文件并保留原文件。</p><p>常见图片格式直接转换；Office、Markdown、PDF 与文字识别按用途安装本地组件，安装后离线使用。PDF 转 Word 为文字提取，转 PPT 为图片式幻灯片。</p><p>隐藏窗口后继续转换；关闭插件只阻止新任务，已开始的任务可在转换面板取消。</p></details>
+            <input id="conversion-enabled" type="checkbox" role="switch" class="switch" bind:checked={draft.conversionEnabled} aria-label="格式转换" aria-describedby="conversion-description" />
+          </div>
         {:else}
           <h2>文件搜索引擎</h2><p class="settings-intro">内置引擎由 SuperSearch 自动在后台管理；安装包包含专属高速索引服务。</p>
           <div class="provider-card"><div class="provider-card-heading"><span class="provider-logo"><Search size={19} /></span><div><strong>内置 Everything</strong><span>{preview ? '预览模式未连接本地引擎' : fileProvider?.status === 'ready' ? '搜索引擎已就绪' : fileProvider?.status === 'indexLoading' || fileProvider?.status === 'loading' ? '索引正在加载' : fileProvider?.status === 'notRunning' ? '搜索引擎未运行' : '搜索引擎暂不可用'}</span></div><span class="status-dot" class:warning={preview || fileProvider?.status !== 'ready'}></span></div><p>{fileProvider ? providerMessage(fileProvider) : '正在检查内置文件搜索引擎…'}</p><p>完成一次管理员安装后，NTFS 固定磁盘使用高速卷索引；服务不可用或其它文件系统使用目录扫描。在「搜索」中设置目录，可缩小返回结果范围。</p><div class="button-row"><button class="secondary" disabled={busy} onclick={() => recovery('start_everything')}><RefreshCw size={14} />重新启动搜索引擎</button></div></div>

@@ -1,0 +1,863 @@
+{
+  "schema": 1,
+  "originalArchive": "supersearch-pdf-component-1.0.0-windows-x64.zip",
+  "originalArchiveSha256": "c944672ec859104f552fef6d88ca34a4f5583936cef7fed62639fa110dfde49a",
+  "binaryVersionEvidence": "PE version resources for CPython/OpenSSL/Expat/liblzma/MSVC/UCRT; BZ2_bzlibVersion and mpd_version exports; exact matching conda package payloads for CPython/MSVC/UCRT/mpdecimal/zlib and installed libffi package paths metadata. PyInstaller Analysis-00.toc identifies original DLL selection.",
+  "libraries": [
+    {
+      "path": "_internal/api-ms-win-core-console-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "22b0d0412c274a04d11d7fd3f6545eff245e6f032e21b86d920c2844dd1007c6",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-datetime-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "631a106755f13a78032d7c17cd19c5185fe89d93fda2ac108c4f53e27dcdecdb",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-debug-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "1ce185afeea0a30a12b496d95df395c18bd0e99570c0ac3126758476d4b6aea0",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-errorhandling-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "cdbc9ee30658188fd9af68ad52b5d8e7f59111191b0681ec2ed9095d9c85ebee",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-fibers-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "938a52984e7e9ffeef350a794907639d453e346d5bdc0aec8c1360d040cc672a",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-fibers-l1-1-1.dll",
+      "bytes": 22872,
+      "sha256": "5ef70308bcca628ce6b0e2856b15b1c7ae340c3f9bbbc4c1071d8c191a34a5c3",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "Windows API-set forwarder 10.0.26100.4654",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "5ef70308bcca628ce6b0e2856b15b1c7ae340c3f9bbbc4c1071d8c191a34a5c3",
+        "exactFileMatch": true,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "152f04777ed00bee02d847890bafc1bfe4dc0305846ac50df14765898fd0db10"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l1-1-0.dll",
+      "bytes": 26232,
+      "sha256": "f36025fd0715ec893c112f06472072c565385b8c5fa675cce5b4a9158bfb87e9",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l1-2-0.dll",
+      "bytes": 22120,
+      "sha256": "3d95961590fe6da5c569bcb0a54651488e70dd7b15c257e1b9faf8a3cc0e63e4",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l2-1-0.dll",
+      "bytes": 22120,
+      "sha256": "c6515fb573cd8190ebc401aab4646069066205ee9eeca548ae5ddbec3633336b",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-handle-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "523b4c1528aab62c5f8622e4e2c4a4ba0df43114098a05f0c58c69c716c42626",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-heap-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "4fff338c18ab8a1a37d1190e3b9edcca55afa86b0ba0f97d87c4c841e4e29678",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-interlocked-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "841aa4632552c47b43d453968da2c8d0861b1eb776d530a4e985d0290516d6c8",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-kernel32-legacy-l1-1-1.dll",
+      "bytes": 22888,
+      "sha256": "5200b16cb2ddc61cfc07373a9a84aa85a3ab50806ca96c879c883275832944c1",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "Windows API-set forwarder 10.0.26100.4654",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "5200b16cb2ddc61cfc07373a9a84aa85a3ab50806ca96c879c883275832944c1",
+        "exactFileMatch": true,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "77a888264c95ddfc16e0f98c9edb48646423f2062bc560165841f53c58eda5a3"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-libraryloader-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "e989c62edade6b3333d798e0481f4c2ec08f7d2a0c47acfcca2a869cd4b68a1f",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-localization-l1-2-0.dll",
+      "bytes": 22136,
+      "sha256": "945dacfe53f62d83acd0537a6712658558faafb18f68b76b88127db78482fd8f",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-memory-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "a505bdf2e4dfd5120de230fd9d159ef75aa00fb3f98e24d259f5c0a456713c74",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-namedpipe-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "b26de5e517b05e10ee34fdf4996f82c465668670329e7f19d21f39a7e39011e7",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-processenvironment-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "32d11f07156248c7906027e0f17e93e51de848f136e6d3fd0d4f9d1ffb2c70da",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-processthreads-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "562e2619e1e685080faf2122c12ae3c35202ce34ce8330d1ff0a3b566095fd38",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-processthreads-l1-1-1.dll",
+      "bytes": 22120,
+      "sha256": "73fabc60a9b24c1eb65ec886a59a190046af5853800572df1d48634417a15729",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-profile-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "2401cc9407ebb1fa60ddf520d422ec1eefec050dd9871554756c869c9b730558",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-rtlsupport-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "b5a61cd60ec9088ee27bf61d37c55abc9d6db3f722616d74fc191cf671a4902a",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-string-l1-1-0.dll",
+      "bytes": 22112,
+      "sha256": "7e97fbf5cee26ab01227d564f023337736310868c1cf23920e4dceeeb1c11701",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-synch-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "4f47aad2664ed21dd80d30ffd954a34503ffe2493bebb39da058d452212e75af",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-synch-l1-2-0.dll",
+      "bytes": 22136,
+      "sha256": "a885774d4a5419db2e9f7fbd0ac06f7244e046aa614cd6585ab22fc428f2c7ee",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-sysinfo-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "ac3b86a3e66c5ae2cb30d8a386b0574e6b59fe0f549120c16b7790c3489bc593",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-sysinfo-l1-2-0.dll",
+      "bytes": 22912,
+      "sha256": "8a0900788859d0eb51c2f48f50cc6ed376a120b518100fa20e11d7702ccde260",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "Windows API-set forwarder 10.0.26100.4654",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "8a0900788859d0eb51c2f48f50cc6ed376a120b518100fa20e11d7702ccde260",
+        "exactFileMatch": true,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "0b5524a1ea87cad61a32fa7c7e5cffc90d28debcf17e6d9f29bbe7d5ccae3416"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-timezone-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "003751ed79881bce98017b66206a2ba411321edd61fd51768779f29dfa99968d",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-core-util-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "eb41c514f2660813fa6ac58a28bcd2adfb64552b945dfcad5123f51a1a71f863",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-conio-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "e7fc8d3956ce856b1ce0b8d16c10fa4c886a33717a64b818aa6d2492d7492429",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-convert-l1-1-0.dll",
+      "bytes": 26216,
+      "sha256": "4d80b38c49c9e507190b133e97c7b06ac926c5e1d93095bef8e35c51e7be4e3c",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-environment-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "65eb6a1276426e0bffc0a7686770cae2fb15a0f819cab4b96003a292c483ec5d",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-filesystem-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "61424c4c6cf665ef1c6e092a105721813d495ff17d81c809b505acf9ac0c575a",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-heap-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "42fed4693a9f2ee8ebb29b34ac92aaef9ff070f609e0cbff74258f65ea53d666",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-locale-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "f2d099d580c733d3132ac3cd0179c7bfa0f1ed8f7bd063e411cd57e920510488",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-math-l1-1-0.dll",
+      "bytes": 30328,
+      "sha256": "8483828a6781dc3cc4a121e2a90f54abb6f6c42680a0634e02db8b736d16f877",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-process-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "f426c73f187c4c3c6759514c11f752a1f8411a1f4392bbee984652e62d2e7296",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-runtime-l1-1-0.dll",
+      "bytes": 26216,
+      "sha256": "21c3d46f74f4249c81d723373da639ac2fb2733a626ec11310df49874663d2bc",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-stdio-l1-1-0.dll",
+      "bytes": 26216,
+      "sha256": "e4a6bd5d65d39da4424ab7828959cfeb7c362e29008bc63ecf16fb3b20001807",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-string-l1-1-0.dll",
+      "bytes": 26216,
+      "sha256": "a1cf3656daa57afb840714f891e7f072ca56bf5838f525d4394c362ef5c8ed8f",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-time-l1-1-0.dll",
+      "bytes": 22120,
+      "sha256": "fc27f6061faf91d696a2b3685a3bfac4de49fbf78d578b9970e1ed21f683b209",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/api-ms-win-crt-utility-l1-1-0.dll",
+      "bytes": 22136,
+      "sha256": "788611c05ef16759ac57df231b25b413be33fccabbeb446caaf4b5cbedd8e1dc",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/ffi.dll",
+      "bytes": 40216,
+      "sha256": "eb22fc95044ce939910d41857445bd0ecc4fc4d810ba30cc6b5f7f55b48ac8ed",
+      "component": "libffi",
+      "version": "3.4.4",
+      "noticeFiles": [
+        "libffi-3.4.4-LICENSE.txt"
+      ],
+      "binaryOrigin": "Anaconda libffi-3.4.4-hd77b12b_1"
+    },
+    {
+      "path": "_internal/LIBBZ2.dll",
+      "bytes": 93488,
+      "sha256": "be9d6804f5478eb3d0ed46f44d5c4d3af3c2284e3506f8c767fda0bb02ba790f",
+      "component": "bzip2",
+      "version": "1.0.8",
+      "noticeFiles": [
+        "bzip2-1.0.8-LICENSE.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "aa2f508226a4bb34145ab61c1c5a0c3becb63d76be0094b9a7ba41b5ed8ef479",
+        "exactFileMatch": false,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "4f3866f5894abb7ad591e007b64f582b751091b4f141ca3e549c6c28f328183a"
+      }
+    },
+    {
+      "path": "_internal/libcrypto-3-x64.dll",
+      "bytes": 7449904,
+      "sha256": "9ef545dd695164d40b1806f258440fc1b23d9a8b1bbd8e89577d46e82f08b40a",
+      "component": "OpenSSL",
+      "version": "3.6.4",
+      "noticeFiles": [
+        "OpenSSL-3.6.4-LICENSE.txt",
+        "OpenSSL-3.6.4-AUTHORS.md"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "f1e0310f57f8c5ec0552c45bb7de36020542874017a8e224c7306c49a3dc1345",
+        "exactFileMatch": false,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "44f84e72047f8d46b599c337f368d44d9199bd366c16eb319e4b8ac650743977"
+      }
+    },
+    {
+      "path": "_internal/libexpat.dll",
+      "bytes": 282416,
+      "sha256": "7a1997016feb1aa1e5aa042adcf8a9806ee7fb68016cf3c13e9a8d76b0fb6f62",
+      "component": "Expat",
+      "version": "2.8.1",
+      "noticeFiles": [
+        "Expat-2.8.1-COPYING.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "1eb742712d317eeefd8f7e4037a230c2c1032471108c3ae35f79bbf39edd8b65",
+        "exactFileMatch": false,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "bae5279ddfda623f990a0be0c0bf8a613258ff0890873d4698a41c7785f66339"
+      }
+    },
+    {
+      "path": "_internal/liblzma.dll",
+      "bytes": 204080,
+      "sha256": "0106bee55c98ae9797dddfc106bb16abf9d25f88f1c341e376ba0589b8be3a99",
+      "component": "liblzma",
+      "version": "5.8.3",
+      "noticeFiles": [
+        "XZ-5.8.3-COPYING.txt",
+        "XZ-5.8.3-COPYING.0BSD.txt"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "276c631803cd7dd81c54fe04dc830b488f6b4a8ce682608d6108df574b954704",
+        "exactFileMatch": false,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "3860224cec0a20995af6767264718f20ee7a5dd53c6000e810fe809e546f74f8"
+      }
+    },
+    {
+      "path": "_internal/libmpdec-4.dll",
+      "bytes": 213264,
+      "sha256": "81ff8522e6267db6e90ce68eb68eed1e3f8a508d536f68fbf70d9cee8a2a0e9d",
+      "component": "mpdecimal",
+      "version": "4.0.0",
+      "noticeFiles": [
+        "mpdecimal-4.0.0-COPYRIGHT.txt"
+      ],
+      "binaryOrigin": "Anaconda libmpdec-4.0.0-h827c3e9_0"
+    },
+    {
+      "path": "_internal/libssl-3-x64.dll",
+      "bytes": 1336624,
+      "sha256": "49cd8d2b10ca46adff48488c9a410ea25df30bb6150efff9e194ba5ded772126",
+      "component": "OpenSSL",
+      "version": "3.6.4",
+      "noticeFiles": [
+        "OpenSSL-3.6.4-LICENSE.txt",
+        "OpenSSL-3.6.4-AUTHORS.md"
+      ],
+      "binaryOrigin": "Codex native poppler runtime",
+      "sourceVerification": {
+        "currentProviderSha256": "6b9c7b28d6bbc0608baa4d43717e24d711e0bfdce813bb5cc7e0137a34234da6",
+        "exactFileMatch": false,
+        "identicalPayloadIgnoringAuthenticodeCertificateAndPeChecksum": true,
+        "normalizedPeSha256": "827b60140138e738d7064a608b7c9e027010a2a959347834aad47be4d1cbb2b8"
+      }
+    },
+    {
+      "path": "_internal/python3.dll",
+      "bytes": 70472,
+      "sha256": "ad9bb678597d9b4c81ab9b590a8b45fe803d1be80528c534ce29db8ef93808e6",
+      "component": "CPython",
+      "version": "3.13.5",
+      "noticeFiles": [
+        "CPython-3.13.5-LICENSE.txt"
+      ],
+      "binaryOrigin": "Anaconda python-3.13.5-h286a616_100_cp313"
+    },
+    {
+      "path": "_internal/python313.dll",
+      "bytes": 7119176,
+      "sha256": "266889b30355dc5a03dd5e15b0a43966e7a58e33c9916da22c583169d9aab2e4",
+      "component": "CPython",
+      "version": "3.13.5",
+      "noticeFiles": [
+        "CPython-3.13.5-LICENSE.txt"
+      ],
+      "binaryOrigin": "Anaconda python-3.13.5-h286a616_100_cp313"
+    },
+    {
+      "path": "_internal/ucrtbase.dll",
+      "bytes": 1123944,
+      "sha256": "91d027417ff2301b7135e864a5df6693488f8412ff87040f4897e0e03bc2577b",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/VCRUNTIME140.dll",
+      "bytes": 120400,
+      "sha256": "052ad6a20d375957e82aa6a3c441ea548d89be0981516ca7eb306e063d5027f4",
+      "component": "Microsoft VC++/Windows UCRT",
+      "version": "14.42.34438 / 10.0.22621.3233",
+      "noticeFiles": [
+        "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+        "Microsoft-Windows-10-SDK-License.html",
+        "Anaconda-build-recipes-BSD-3-Clause.txt"
+      ],
+      "binaryOrigin": "Anaconda vs2015_runtime-14.42.34433-hbfb602d_5"
+    },
+    {
+      "path": "_internal/zlib.dll",
+      "bytes": 99608,
+      "sha256": "8dbfd6ef7374a831158bddccb79e3d5665e9625c81af557f15b4150b7877f687",
+      "component": "zlib",
+      "version": "1.2.13",
+      "noticeFiles": [
+        "zlib-1.2.13-header-and-license.txt"
+      ],
+      "binaryOrigin": "Anaconda zlib-1.2.13-h8cc25b3_1"
+    }
+  ],
+  "noticeFiles": [
+    {
+      "file": "Anaconda-build-recipes-BSD-3-Clause.txt",
+      "bytes": 1518,
+      "sha256": "ccb1dfcb7a430a214a336a527a33490b34c3316a84312999a7ad9b3556f98e88",
+      "source": "https://repo.anaconda.com/pkgs/main/win-64/vs2015_runtime-14.42.34433-hbfb602d_5.conda#info/recipe/parent/LICENSE.txt"
+    },
+    {
+      "file": "bzip2-1.0.8-LICENSE.txt",
+      "bytes": 1896,
+      "sha256": "c6dbbf828498be844a89eaa3b84adbab3199e342eb5cb2ed2f0d4ba7ec0f38a3",
+      "source": "https://raw.githubusercontent.com/libarchive/bzip2/bzip2-1.0.8/LICENSE"
+    },
+    {
+      "file": "CPython-3.13.5-LICENSE.txt",
+      "bytes": 13809,
+      "sha256": "78b12c3a81360b357002334f0e70ea0e92eebf7a9b358805c03c48484945f3bb",
+      "source": "https://repo.anaconda.com/pkgs/main/win-64/python-3.13.5-h286a616_100_cp313.conda#info/licenses/LICENSE"
+    },
+    {
+      "file": "Expat-2.8.1-COPYING.txt",
+      "bytes": 1144,
+      "sha256": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87",
+      "source": "https://raw.githubusercontent.com/libexpat/libexpat/R_2_8_1/expat/COPYING"
+    },
+    {
+      "file": "libffi-3.4.4-LICENSE.txt",
+      "bytes": 1132,
+      "sha256": "2c9c2acb9743e6b007b91350475308aee44691d96aa20eacef8e199988c8c388",
+      "source": "https://repo.anaconda.com/pkgs/main/win-64/libffi-3.4.4-hd77b12b_1.conda#info/licenses/LICENSE"
+    },
+    {
+      "file": "Microsoft-Visual-C-Runtime-2015-2022-License.docx",
+      "bytes": 39644,
+      "sha256": "f1e3d56ceb2ad68aae0711b910375009e651ac5530fa0760f0dea6e81e54fae1",
+      "source": "https://visualstudio.microsoft.com/wp-content/uploads/2021/09/Visual-C-Runtime-2015-2022-License-1.docx"
+    },
+    {
+      "file": "Microsoft-Windows-10-SDK-License.html",
+      "bytes": 49044,
+      "sha256": "b6abdbb3e46d3f9ccb719ddc87c9735c16e7ff530b3ec5ea24719cf5a98afde9",
+      "source": "https://learn.microsoft.com/en-us/legal/windows-sdk/license"
+    },
+    {
+      "file": "mpdecimal-4.0.0-COPYRIGHT.txt",
+      "bytes": 1285,
+      "sha256": "2713324211652ce4a60e6e21e54f9dc3004299e591b0933a352f1a89c5fb53c2",
+      "source": "https://repo.anaconda.com/pkgs/main/win-64/libmpdec-4.0.0-h827c3e9_0.conda#info/licenses/COPYRIGHT.txt"
+    },
+    {
+      "file": "OpenSSL-3.6.4-AUTHORS.md",
+      "bytes": 1022,
+      "sha256": "b9f638dfc06b59c2d3b808186c3b30f713805a5db390f5b77b1703ac58acb83e",
+      "source": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.6.4/AUTHORS.md"
+    },
+    {
+      "file": "OpenSSL-3.6.4-LICENSE.txt",
+      "bytes": 10175,
+      "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+      "source": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.6.4/LICENSE.txt"
+    },
+    {
+      "file": "XZ-5.8.3-COPYING.0BSD.txt",
+      "bytes": 607,
+      "sha256": "0b01625d853911cd0e2e088dcfb743261034a091bb379246cb25a14cc4c74bf1",
+      "source": "https://raw.githubusercontent.com/tukaani-project/xz/v5.8.3/COPYING.0BSD"
+    },
+    {
+      "file": "XZ-5.8.3-COPYING.txt",
+      "bytes": 3119,
+      "sha256": "616a3ad264ce29b8f1cb97e53037b139d406899ca8d1f799651e17bfa09830b8",
+      "source": "https://raw.githubusercontent.com/tukaani-project/xz/v5.8.3/COPYING"
+    },
+    {
+      "file": "zlib-1.2.13-header-and-license.txt",
+      "bytes": 97323,
+      "sha256": "a980a0d104198a53cc220c51ab5856e5be901bec8a2d02e0ee79a8754219dfed",
+      "source": "https://repo.anaconda.com/pkgs/main/win-64/zlib-1.2.13-h8cc25b3_1.conda#info/licenses/zlib.h"
+    }
+  ],
+  "originalCondaPackages": [
+    {
+      "name": "python",
+      "version": "3.13.5",
+      "build": "h286a616_100_cp313",
+      "fn": "python-3.13.5-h286a616_100_cp313.conda",
+      "url": "https://repo.anaconda.com/pkgs/main/win-64/python-3.13.5-h286a616_100_cp313.conda",
+      "sha256": "df6adade044a5696e44bb314e9d24241c8ccf48e2b439ba61f07b9e44f92d2cb",
+      "license": "PSF-2.0"
+    },
+    {
+      "name": "vs2015_runtime",
+      "version": "14.42.34433",
+      "build": "hbfb602d_5",
+      "fn": "vs2015_runtime-14.42.34433-hbfb602d_5.conda",
+      "url": "https://repo.anaconda.com/pkgs/main/win-64/vs2015_runtime-14.42.34433-hbfb602d_5.conda",
+      "sha256": "edfff335e41537c54dec03df71971803ec9fa5d036e1fdcb448fff0aea269508",
+      "license": ""
+    },
+    {
+      "name": "libmpdec",
+      "version": "4.0.0",
+      "build": "h827c3e9_0",
+      "fn": "libmpdec-4.0.0-h827c3e9_0.conda",
+      "url": "https://repo.anaconda.com/pkgs/main/win-64/libmpdec-4.0.0-h827c3e9_0.conda",
+      "sha256": "3851b0985a481e019440ee2720bdfe1a98fe4db8cd67f8cc16333a0fa40f38df",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "name": "zlib",
+      "version": "1.2.13",
+      "build": "h8cc25b3_1",
+      "fn": "zlib-1.2.13-h8cc25b3_1.conda",
+      "url": "https://repo.anaconda.com/pkgs/main/win-64/zlib-1.2.13-h8cc25b3_1.conda",
+      "sha256": "48eef468ca392090e6fe57c3ba54e3a7dc1412f9c417c248575d0717e9a5ed3d",
+      "license": "Zlib"
+    }
+  ],
+  "libffiCondaPackage": {
+    "url": "https://repo.anaconda.com/pkgs/main/win-64/libffi-3.4.4-hd77b12b_1.conda",
+    "sha256": "43a437fde4c064b2f1be2342a7bc6edccbc13da6a4fb8a44d87e4e6e34c54b63"
+  }
+}

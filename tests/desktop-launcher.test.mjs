@@ -4,10 +4,30 @@ import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { describeLaunch } from '../scripts/desktop.mjs';
+import { describeLaunch, cmakeEnvironment } from '../scripts/desktop.mjs';
 
 const projectPath = fileURLToPath(new URL('../', import.meta.url));
 const fixtures = [];
+
+describe('native QR build CMake discovery', () => {
+  it('preserves an explicitly configured CMake executable', () => {
+    const environment = { CMAKE: 'custom-cmake', KEEP: 'value' };
+    expect(cmakeEnvironment(environment)).toBe(environment);
+  });
+  it('discovers Visual Studio bundled CMake only for child processes', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'supersearch-cmake-'));
+    fixtures.push(fixture);
+    const directory = join(fixture, 'Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin');
+    mkdirSync(directory, { recursive: true });
+    const cmake = join(directory, 'cmake.exe');
+    writeFileSync(cmake, 'fixture');
+    const environment = { 'ProgramFiles(x86)': fixture, KEEP: 'value' };
+    expect(cmakeEnvironment(environment)).toEqual({ ...environment, CMAKE: cmake });
+    expect(describeLaunch('check', fixture, environment).options.env.CMAKE).toBe(cmake);
+    expect(environment).not.toHaveProperty('CMAKE');
+    expect(cmakeEnvironment({ KEEP: 'value' })).toEqual({ KEEP: 'value' });
+  });
+});
 
 afterEach(() => {
   for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });

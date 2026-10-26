@@ -54,6 +54,7 @@ pub fn invalidate(app: &AppHandle) {
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut cache) = state.cache.lock() {
             cache.gate.invalidate();
+            if let Some(previews) = app.try_state::<crate::pdf_preview::PdfState>() { previews.clear(); }
             cache.entries.clear();
             cache.results.clear();
             cache.spec = None;
@@ -75,7 +76,7 @@ pub fn remember_window_monitor(window: &tauri::Window) {
     if let Ok(mut memory) = state.window_monitor.lock() { memory.observe(monitor_bounds(&monitor), &connected); };
 }
 
-fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayout, rows: u32, initial_position: bool) -> Result<(), String> {
+fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayout, rows: u32, initial_position: bool, height: Option<u32>) -> Result<(), String> {
     let cursor_monitor = if initial_position {
         unsafe {
             let mut point = windows::Win32::Foundation::POINT::default();
@@ -92,7 +93,12 @@ fn apply_layout(window: &tauri::WebviewWindow, layout: crate::layout::WindowLayo
     if connected.is_empty() { return Err("No monitor is available".into()); }
     let position = window.outer_position().ok();
     let anchor = if initial_position { None } else { lock(&state.window_monitor)?.anchor(&connected, position) };
-    let geometry = crate::layout::fit(layout, rows, work, scale, anchor);
+    let mut geometry = if matches!(layout, crate::layout::WindowLayout::Preview) {
+        crate::layout::fit_preview(height.unwrap_or(320), work, scale, anchor)
+    } else { crate::layout::fit(layout, rows, work, scale, anchor) };
+    if let (Some(position), Ok(previous)) = (anchor, window.outer_size()) {
+        geometry.position = crate::layout::resized_position(work, position, previous, geometry.size);
+    }
     // 物理尺寸按目标屏幕 DPI 计算，跨屏移动时不依赖尚未更新的旧窗口 DPI。
     window.set_position(geometry.position).map_err(|e| e.to_string())?;
     window.set_min_size(Some(tauri::PhysicalSize::new((360.0*scale).round().min(work.size.width as f64) as u32, (76.0*scale).round().min(work.size.height as f64) as u32))).map_err(|e| e.to_string())?;
@@ -111,19 +117,25 @@ fn results_layout_rows(cache: &SearchCache, rows: u32, request_id: Option<&str>)
 }
 
 #[tauri::command]
-pub fn sync_window_layout(app: AppHandle, layout: crate::layout::WindowLayout, rows: u32, request_id: Option<String>) -> Result<(), String> {
+pub fn sync_window_layout(app: AppHandle, layout: crate::layout::WindowLayout, rows: u32, request_id: Option<String>, height: Option<u32>) -> Result<(), String> {
     let window = app.get_webview_window("main").ok_or("Search window is unavailable")?;
     if !window.is_visible().unwrap_or(false) { return Ok(()); }
     let state = app.state::<AppState>();
+    if matches!(layout, crate::layout::WindowLayout::Preview) {
+        let store = lock(&state.store)?;
+        let cache = lock(&state.cache)?;
+        if !store.settings().file_preview_enabled || request_id.as_deref() != Some(cache.request_id.as_str()) || !may_expand(&cache) { return Ok(()); }
+    }
     let rows = if matches!(layout, crate::layout::WindowLayout::Results) {
         let cache = lock(&state.cache)?;
         let Some(rows) = results_layout_rows(&cache, rows, request_id.as_deref()) else { return Ok(()); };
         rows
     } else { rows };
-    apply_layout(&window, layout, rows, false)
+    apply_layout(&window, layout, rows, false, height)
 }
 
 pub fn show(app: &AppHandle, settings: bool) {
+    crate::qr_scan::cancel(app);
     // 原生唤起先使旧搜索失效并收起，再显示；迟到结果不能恢复旧面板。
     invalidate(app);
     if let Some(window) = app.get_webview_window("main") {
@@ -132,7 +144,7 @@ pub fn show(app: &AppHandle, settings: bool) {
         // 鼠标跟随仅在呼出时重新选屏；后续搜索展开仍保留该屏上的当前锚点。
         let follow_cursor = state.store.lock().map(|store| store.settings().window_placement == "cursor").unwrap_or(false);
         let initial_position = follow_cursor || !state.window_position_initialized.load(Ordering::Relaxed);
-        if apply_layout(&window, layout, 0, initial_position).is_ok() {
+        if apply_layout(&window, layout, 0, initial_position, None).is_ok() {
             state.window_position_initialized.store(true, Ordering::Relaxed);
         }
         let _ = window.show();
@@ -148,6 +160,7 @@ pub fn show(app: &AppHandle, settings: bool) {
 }
 
 pub fn toggle(app: &AppHandle) {
+    crate::qr_scan::cancel(app);
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
             invalidate(app);
@@ -773,6 +786,90 @@ mod tests {
         assert_eq!(store.settings(), old);
     }
     #[test]
+    fn qr_shortcut_failure_rolls_back_new_search_registration() {
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        let old = store.settings();
+        let registered = RefCell::new(vec![old.shortcut.clone()]);
+        let error = commit_settings(&mut store, old.settings_version,
+            json!({"shortcut":"Control+Space","qrScanEnabled":true,"qrScanShortcut":"Control+Shift+Q"}),
+            |shortcut| {
+                if shortcut == "Control+Shift+Q" { return Err("Shortcut occupied".into()); }
+                registered.borrow_mut().push(shortcut.into()); Ok(())
+            },
+            |shortcut| registered.borrow_mut().retain(|value| value != shortcut), |_| Ok(())).unwrap_err();
+        assert!(error.contains("QR shortcut"));
+        assert_eq!(*registered.borrow(), [old.shortcut.clone()]);
+        assert_eq!(store.settings(), old);
+    }
+    #[test]
+    fn qr_shortcuts_can_swap_and_disable_without_dropping_search() {
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        let old = store.settings();
+        let registered = RefCell::new(vec![old.shortcut.clone()]);
+        let enabled = commit_settings(&mut store, old.settings_version,
+            json!({"qrScanEnabled":true,"qrScanShortcut":"Control+Shift+Q"}),
+            |shortcut| { registered.borrow_mut().push(shortcut.into()); Ok(()) },
+            |shortcut| registered.borrow_mut().retain(|value| value != shortcut), |_| Ok(())).unwrap();
+        let swapped = commit_settings(&mut store, enabled.settings_version,
+            json!({"shortcut":"Control+Shift+Q","qrScanShortcut":"Alt+Space"}),
+            |_| panic!("Swap must reuse existing registrations"),
+            |_| panic!("Swap must preserve both registrations"), |_| Ok(())).unwrap();
+        commit_settings(&mut store, swapped.settings_version, json!({"qrScanEnabled":false}),
+            |_| panic!("Disabling must not register shortcuts"),
+            |shortcut| registered.borrow_mut().retain(|value| value != shortcut), |_| Ok(())).unwrap();
+        assert_eq!(*registered.borrow(), ["Control+Shift+Q"]);
+        let restored = fixture.store().settings();
+        assert!(!restored.qr_scan_enabled);
+        assert_eq!(restored.qr_scan_shortcut, "Alt+Space");
+    }
+    #[test]
+    fn qr_shortcut_startup_rollback_keeps_both_prior_bindings() {
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        store.save_settings(store.settings().settings_version, json!({"qrScanEnabled":true,"qrScanShortcut":"Control+Q"})).unwrap();
+        let old = store.settings();
+        let registered = RefCell::new(crate::qr_scan::active_shortcuts(&old));
+        assert!(commit_settings(&mut store, old.settings_version,
+            json!({"shortcut":"Control+Space","qrScanShortcut":"Control+Shift+Q","autostart":true}),
+            |shortcut| { registered.borrow_mut().push(shortcut.into()); Ok(()) },
+            |shortcut| registered.borrow_mut().retain(|value| value != shortcut), |_| Err("Startup denied".into())).is_err());
+        assert_eq!(*registered.borrow(), crate::qr_scan::active_shortcuts(&old));
+        assert_eq!(store.settings().qr_scan_shortcut, old.qr_scan_shortcut);
+    }
+    #[test]
+    fn qr_missing_startup_binding_is_retried_on_unrelated_save() {
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        store.save_settings(store.settings().settings_version, json!({"qrScanEnabled":true,"qrScanShortcut":"Control+Q"})).unwrap();
+        let old = store.settings();
+        let actual = vec![old.shortcut.clone()];
+        let registered = RefCell::new(actual.clone());
+        commit_settings_with_registry(&mut store, old.settings_version, json!({"theme":"dark"}), &actual,
+            |shortcut| { registered.borrow_mut().push(shortcut.into()); Ok(()) },
+            |_| panic!("Retry must preserve existing binding"), |_| Ok(())).unwrap();
+        assert_eq!(*registered.borrow(), crate::qr_scan::active_shortcuts(&old));
+    }
+    #[test]
+    fn qr_still_unavailable_startup_binding_prevents_false_success() {
+        let fixture = Fixture::new();
+        let mut store = fixture.store();
+        store.save_settings(store.settings().settings_version, json!({"qrScanEnabled":true,"qrScanShortcut":"Control+Q"})).unwrap();
+        let old = store.settings();
+        let actual = vec![old.shortcut.clone()];
+        let registered = RefCell::new(actual.clone());
+        let error = commit_settings_with_registry(&mut store, old.settings_version, json!({"shortcut":"Control+Space"}), &actual,
+            |shortcut| {
+                if shortcut == "Control+Q" { return Err("Occupied".into()); }
+                registered.borrow_mut().push(shortcut.into()); Ok(())
+            },
+            |shortcut| registered.borrow_mut().retain(|value| value != shortcut), |_| Ok(())).unwrap_err();
+        assert!(error.contains("QR shortcut"));
+        assert_eq!(*registered.borrow(), actual);
+        assert_eq!(store.settings(), old);
+    }
+    #[test]
     fn startup_failure_reports_failed_rollback_and_cleans_new_shortcut() {
         let fixture = Fixture::new();
         let mut store = fixture.store();
@@ -876,6 +973,7 @@ pub fn start_search(app: AppHandle, request_id: String, raw_query: String, scope
     let settings = store.settings();
     let mut cache = lock(&state.cache)?;
     let generation = cache.gate.begin(&request_id)?;
+    app.state::<crate::pdf_preview::PdfState>().clear();
     cache.request_id = request_id.clone();
     cache.generation = generation;
     cache.revision = 0;
@@ -1027,12 +1125,13 @@ fn apply_file_page(
 }
 
 #[tauri::command]
-pub fn cancel_search(state: State<AppState>, request_id: String) -> Result<(), String> {
+pub fn cancel_search(app: AppHandle, state: State<AppState>, request_id: String) -> Result<(), String> {
     let mut cache = lock(&state.cache)?;
     let generation = cache.generation;
     let active = cache.gate.current(&request_id, generation);
     cache.gate.cancel(&request_id);
     if active {
+        app.state::<crate::pdf_preview::PdfState>().clear();
         cache.results.clear();
         cache.entries.clear();
         cache.spec = None;
@@ -1063,6 +1162,63 @@ pub fn load_more(app: AppHandle, request_id: String) -> Result<(), String> {
 fn result_entry(cache: &SearchCache, request: &str, result: &str) -> Result<Entry, String> {
     if !cache.gate.current(request, cache.generation) { return Err("Search is no longer current".into()); }
     cache.results.get(result).cloned().ok_or("This result is no longer available".into())
+}
+
+#[tauri::command]
+pub async fn preview_file(app: AppHandle, request_id: String, result_id: String, preview_id: String, page: Option<u32>, offset: Option<u64>) -> Result<crate::file_preview::PreviewResult, String> {
+    if preview_id.is_empty() || preview_id.len() > 80 { return Err("Preview invalid session".into()); }
+    let path = {
+        let state = app.state::<AppState>();
+        let store = lock(&state.store)?;
+        if !store.settings().file_preview_enabled { return Err("Preview disabled".into()); }
+        let cache = lock(&state.cache)?;
+        let entry = result_entry(&cache, &request_id, &result_id)?;
+        if entry.kind != "file" || entry.launch_kind == "shell" { return Err("Preview unsupported format".into()); }
+        if page.is_none() && offset.is_none() { app.state::<crate::pdf_preview::PdfState>().begin(&preview_id); }
+        entry.locator
+    };
+    let previews = app.state::<crate::pdf_preview::PdfState>();
+    let background = app.clone();
+    let session_id = preview_id.clone();
+    // 有界读取与原生解码放在后台；搜索和设置锁不跨越磁盘 I/O。
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        if Path::new(&path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
+            if offset.is_some() { return Err("Preview invalid offset".into()); }
+            let file = crate::file_preview::open_bounded_file(&path, 100 * 1024 * 1024)?;
+            let total_bytes = file.metadata().map_err(|_| "Preview read failed")?.len();
+            let rendered = background.state::<crate::pdf_preview::PdfState>().render(&session_id, file, page.unwrap_or(0))?;
+            Ok(crate::file_preview::PreviewResult { kind: "pdf".into(), mime: "image/png".into(), data: rendered.data, page_count: rendered.page_count, page_index: rendered.page_index, total_bytes, ..Default::default() })
+        } else {
+            if page.is_some() { return Err("Preview unsupported page".into()); }
+            crate::file_preview::read_preview_segment(&path, offset.unwrap_or(0))
+        }
+    }).await.map_err(|_| "Preview read failed")?;
+    let state = app.state::<AppState>();
+    let store = lock(&state.store)?;
+    if !store.settings().file_preview_enabled { previews.cancel(&preview_id); return Err("Preview disabled".into()); }
+    let cache = lock(&state.cache)?;
+    if let Err(error) = result_entry(&cache, &request_id, &result_id) { previews.cancel(&preview_id); return Err(error); }
+    result
+}
+
+#[tauri::command]
+pub async fn conversion_from_result(app: AppHandle, request_id: String, result_id: String) -> Result<Vec<crate::conversion::ConversionSource>, String> {
+    let path = {
+        let state = app.state::<AppState>();
+        if !lock(&state.store)?.settings().conversion_enabled { return Err("Conversion disabled".into()); }
+        let cache = lock(&state.cache)?;
+        let entry = result_entry(&cache, &request_id, &result_id)?;
+        if entry.kind != "file" || entry.launch_kind == "shell" { return Err("Conversion local regular file required".into()); }
+        std::path::PathBuf::from(entry.locator)
+    };
+    // 凭据在当前搜索下验证，文件句柄在后台打开并交给独立转换会话保管。
+    tauri::async_runtime::spawn_blocking(move || app.state::<crate::conversion::ConversionState>().grant_paths(vec![path]))
+        .await.map_err(|_| "Conversion source unavailable".to_string())?
+}
+
+#[tauri::command]
+pub fn close_file_preview(app: AppHandle, preview_id: String) {
+    if !preview_id.is_empty() && preview_id.len() <= 80 { app.state::<crate::pdf_preview::PdfState>().cancel(&preview_id); }
 }
 
 #[tauri::command]
@@ -1109,12 +1265,21 @@ pub fn update_settings(app: AppHandle, state: State<AppState>, settings_version:
     if patch.get("everythingPath").is_some_and(|value| value.as_str() != Some(old.everything_path.as_str())) {
         return Err("Choose Everything.exe using the native file picker.".into());
     }
-    let settings = commit_settings(&mut store, settings_version, patch,
+    let registered: Vec<_> = crate::qr_scan::active_shortcuts(&old).into_iter()
+        .filter(|shortcut| app.global_shortcut().is_registered(shortcut.as_str())).collect();
+    let outcome = commit_settings_with_registry(&mut store, settings_version, patch, &registered,
         |shortcut| app.global_shortcut().register(shortcut).map_err(|_| "Shortcut is unavailable. Choose another shortcut.".to_string()),
         |shortcut| { let _ = app.global_shortcut().unregister(shortcut); },
-        |enabled| (if enabled { app.autolaunch().enable() } else { app.autolaunch().disable() }).map_err(|_| "Unable to change Windows startup.".to_string()))?;
+        |enabled| (if enabled { app.autolaunch().enable() } else { app.autolaunch().disable() }).map_err(|_| "Unable to change Windows startup.".to_string()));
+    // 仅在系统设置副作用与回滚结束后清理，取消草稿或回滚为启用不会丢失提醒。
+    let cleanup = if !store.settings().reminders_enabled { store.disable_pending_reminders() } else { Ok(()) };
     drop(store);
-    if settings.shortcut != old.shortcut { *lock(&state.shortcut_error)? = None; }
+    crate::qr_scan::cancel(&app);
+    crate::reminders::changed(&app);
+    let settings = outcome?;
+    cleanup?;
+    // 保存过程已重新注册启动时失败的绑定；只有确认每个启用项都成功后才清除状态错误。
+    *lock(&state.shortcut_error)? = None;
     if settings.include_directories != old.include_directories {
         // 设置已提交；索引线程异常由来源状态反馈，不能将成功保存误报为失败并遗留旧版本。
         let _ = state.everything.retry(settings.include_directories.clone());
@@ -1124,8 +1289,19 @@ pub fn update_settings(app: AppHandle, state: State<AppState>, settings_version:
     Ok(settings)
 }
 
+#[cfg(test)]
 fn commit_settings(
     store: &mut Store, settings_version: u64, patch: Value,
+    register: impl FnMut(&str) -> Result<(), String>,
+    unregister: impl FnMut(&str),
+    autostart: impl FnMut(bool) -> Result<(), String>,
+) -> Result<Settings, String> {
+    let registered = crate::qr_scan::active_shortcuts(&store.settings());
+    commit_settings_with_registry(store, settings_version, patch, &registered, register, unregister, autostart)
+}
+
+fn commit_settings_with_registry(
+    store: &mut Store, settings_version: u64, patch: Value, registered: &[String],
     mut register: impl FnMut(&str) -> Result<(), String>,
     mut unregister: impl FnMut(&str),
     mut autostart: impl FnMut(bool) -> Result<(), String>,
@@ -1133,23 +1309,30 @@ fn commit_settings(
     let old = store.settings();
     // 先验证完整补丁，再触发系统注册；同一存储锁保护提交与回滚。
     let preview = store.preview_settings(settings_version, patch.clone())?;
-    let new_shortcut = preview.shortcut;
-    let shortcut_changed = new_shortcut != old.shortcut;
-    if shortcut_changed {
-        register(new_shortcut.as_str())?;
+    let old_shortcuts = crate::qr_scan::active_shortcuts(&old);
+    let new_shortcuts = crate::qr_scan::active_shortcuts(&preview);
+    let mut added: Vec<String> = Vec::new();
+    for shortcut in &new_shortcuts {
+        if !registered.iter().any(|old| crate::qr_scan::same_shortcut(old, shortcut)) {
+            if let Err(error) = register(shortcut) {
+                for registered in &added { unregister(registered); }
+                return Err(if crate::qr_scan::same_shortcut(shortcut, &preview.qr_scan_shortcut) { format!("QR shortcut is unavailable: {error}") } else { error });
+            }
+            added.push(shortcut.clone());
+        }
     }
     let saved = store.save_settings(settings_version, patch);
     let settings = match saved {
         Ok(s) => s,
         Err(error) => {
-            if shortcut_changed { unregister(new_shortcut.as_str()); }
+            for shortcut in &added { unregister(shortcut); }
             return Err(error);
         }
     };
     if settings.autostart != old.autostart {
         let outcome = autostart(settings.autostart);
         if outcome.is_err() {
-            if shortcut_changed { unregister(new_shortcut.as_str()); }
+            for shortcut in &added { unregister(shortcut); }
             // 完整恢复旧配置，版本继续递增，拒绝旧页面后续保存。
             let mut rollback = serde_json::to_value(&old).map_err(|_| "Unable to change Windows startup; settings rollback failed: Cannot serialize settings".to_string())?;
             rollback.as_object_mut().ok_or("Unable to change Windows startup; settings rollback failed: Invalid settings")?.remove("settingsVersion");
@@ -1159,7 +1342,10 @@ fn commit_settings(
             };
         }
     }
-    if shortcut_changed { unregister(old.shortcut.as_str()); }
+    // 比较解析后的键位身份，互换两个快捷键时不注销仍在使用的注册项。
+    for shortcut in &old_shortcuts {
+        if !new_shortcuts.iter().any(|new| crate::qr_scan::same_shortcut(shortcut, new)) { unregister(shortcut); }
+    }
     Ok(settings)
 }
 
@@ -1276,6 +1462,7 @@ pub fn search_web(app: AppHandle, raw_query: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn hide_window(app: AppHandle) {
+    crate::qr_scan::cancel(&app);
     invalidate(&app);
     if let Some(window)=app.get_webview_window("main") {let _=window.hide();}
     let _=app.emit("hide_search",());
